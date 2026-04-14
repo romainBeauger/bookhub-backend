@@ -22,10 +22,10 @@ class UserFixtures extends Fixture
         $admin = new User();
 
         // 2. On remplit ses propriétés
-        $user->setLastName('UserFirstName');
-        $user->setFirstName('UserLastName');
+        $user->setLastName('userFirstName');
+        $user->setFirstName('userLastName');
         $user->setEmail('user@bookhub.fr');
-        $user->setRoles([]);
+        $user->setRoles(['ROLE_USER']);
 
         $librarian->setLastName('librarianFirstName');
         $librarian->setFirstName('librarianLastName');
