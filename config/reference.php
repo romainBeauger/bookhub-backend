@@ -9,7 +9,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
 /**
  * This class provides array-shapes for configuring the services and bundles of an application.
  *
- * Service declared with the config() method below are autowired and autoconfigured by default.
+ * Services declared with the config() method below are autowired and autoconfigured by default.
  *
  * This is for apps only. Bundles SHOULD NOT use it.
  *
