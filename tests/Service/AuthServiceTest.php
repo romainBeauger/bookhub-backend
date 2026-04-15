@@ -6,15 +6,22 @@ use App\Entity\User;
 use App\Repository\UserRepository;
 use App\Services\AuthService;
 use Doctrine\ORM\EntityManagerInterface;
+use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 
 class AuthServiceTest extends TestCase
 {
     // Ces propriétés contiendront nos "faux objets" (mocks)
+    /** @var UserRepository&MockObject */
     private UserRepository $userRepository;
+
+    /** @var UserPasswordHasherInterface&MockObject */
     private UserPasswordHasherInterface $passwordHasher;
+
+    /** @var EntityManagerInterface&MockObject */
     private EntityManagerInterface $entityManager;
+
     private AuthService $authService;
 
     protected function setUp(): void
