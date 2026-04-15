@@ -36,7 +36,7 @@ class Book
     #[ORM\Column(length: 255)]
     private ?string $author = null;
 
-    #[ORM\Column(length: 50)]
+    #[ORM\Column(length: 50, unique: true)]
     private ?string $isbn = null;
 
     #[ORM\Column]
