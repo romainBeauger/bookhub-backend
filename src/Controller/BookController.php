@@ -23,14 +23,27 @@ final class BookController extends AbstractController
     ) {}
 
     #[Route('', name: 'book_index', methods: ['GET'])]
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
-        $books = $this->bookRepository->findAll();
+        $page = max(1, $request->query->getInt('page', 1));
+        $limit = min(50, max(1, $request->query->getInt('limit', 10)));
 
-        return $this->json(array_map(
-            fn (Book $book): array => $this->formatBook($book),
-            $books
-        ));
+        $books = $this->bookRepository->findPaginated($page, $limit);
+        $total = $this->bookRepository->countAll();
+        $pages = max(1, (int) ceil($total / $limit));
+
+        return $this->json([
+            'data' => array_map(
+                fn (Book $book): array => $this->formatBook($book),
+                $books
+            ),
+            'pagination' => [
+                'page' => $page,
+                'limit' => $limit,
+                'total' => $total,
+                'pages' => $pages,
+            ],
+        ]);
     }
 
     #[Route('/{id}', name: 'book_show', requirements: ['id' => '\d+'], methods: ['GET'])]
