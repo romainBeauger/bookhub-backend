@@ -10,6 +10,10 @@ use Doctrine\Persistence\ObjectManager;
 
 class BookFixtures extends Fixture implements DependentFixtureInterface
 {
+
+    const BOOK_REFERENCE_1 = 'book-etranger';
+    const BOOK_REFERENCE_2 = 'book-petit-prince';
+
     public function load(ObjectManager $manager): void
     {
         $books = [
@@ -631,6 +635,13 @@ class BookFixtures extends Fixture implements DependentFixtureInterface
             $book->setCategory($category);
 
             $manager->persist($book);
+
+            if ($bookData['isbn'] === '9782070360024') {
+                $this->addReference(self::BOOK_REFERENCE_1, $book);
+            }
+            if ($bookData['isbn'] === '9782070612758') {
+                $this->addReference(self::BOOK_REFERENCE_2, $book);
+            }
         }
 
         $manager->flush();

@@ -10,6 +10,9 @@ use App\Entity\User;
 class UserFixtures extends Fixture
 {
 
+    const USER_REFERENCE = 'user-1';
+    const LIBRARIAN_REFERENCE = 'user-librarian';
+
     public function __construct(
         private UserPasswordHasherInterface $passwordHasher
     ) {}
@@ -48,7 +51,9 @@ class UserFixtures extends Fixture
 
         // 4. On demande à Doctrine de le sauvegarder
         $manager->persist($user);
+        $this->addReference(self::USER_REFERENCE, $user);
         $manager->persist($librarian);
+        $this->addReference(self::LIBRARIAN_REFERENCE, $librarian);
         $manager->persist($admin);
 
         $manager->flush();
