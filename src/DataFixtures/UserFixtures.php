@@ -38,9 +38,9 @@ class UserFixtures extends Fixture
         $admin->setRoles(['ROLE_ADMIN']);
 
         // 3. On hash le mot de passe
-        $hashUser = $this->passwordHasher->hashPassword($user, 'user123');
-        $hashLibrarian = $this->passwordHasher->hashPassword($librarian, 'librarian123');
-        $hashAdmin = $this->passwordHasher->hashPassword($admin, 'admin123');
+        $hashUser = $this->passwordHasher->hashPassword($user, 'user1234');
+        $hashLibrarian = $this->passwordHasher->hashPassword($librarian, 'librarian1234');
+        $hashAdmin = $this->passwordHasher->hashPassword($admin, 'admin1234');
 
         $user->setPassword($hashUser);
         $librarian->setPassword($hashLibrarian);
