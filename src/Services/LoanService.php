@@ -37,4 +37,32 @@ readonly class LoanService
 
         return $loan;
     }
+
+    public function returnLoan(Loan $loan): Loan
+    {
+        if ($loan->getStatus() === Loan::STATUS_RETURNED) {
+            throw new \RuntimeException('Cet emprunt a déjà été retourné.');
+        }
+
+        $loan->setReturnedAt(new \DateTimeImmutable());
+        $loan->setStatus(Loan::STATUS_RETURNED);
+
+        $book = $loan->getBook();
+        $book->setAvailableCopies($book->getAvailableCopies() + 1);
+
+        $this->em->flush();
+
+        return $loan;
+    }
+
+    public function getLoansByUser(User $user): array
+    {
+        return $this->loanRepository->findByUser($user);
+    }
+
+    public function getAllActiveLoans(?bool $isLate = null): array
+    {
+        return $this->loanRepository->findAllActive($isLate);
+    }
+
 }

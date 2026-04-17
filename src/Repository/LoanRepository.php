@@ -7,6 +7,7 @@ use App\Entity\Loan;
 use App\Entity\User;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
+use Doctrine\DBAL\ArrayParameterType;
 
 /**
  * @extends ServiceEntityRepository<Loan>
@@ -65,6 +66,22 @@ class LoanRepository extends ServiceEntityRepository
             ->orderBy('l.dueDate', 'ASC')
             ->getQuery()
             ->getResult();
+    }
+
+    public function findAllActive(?bool $isLate = null): array
+    {
+        $qb = $this->createQueryBuilder('l')
+            ->andWhere('l.status = :statusActive OR l.status = :statusOverdue')
+            ->setParameter('statusActive', Loan::STATUS_ACTIVE)
+            ->setParameter('statusOverdue', Loan::STATUS_OVERDUE)
+            ->orderBy('l.loanDate', 'DESC');
+
+        if ($isLate !== null) {
+            $qb->andWhere('l.isLate = :isLate')
+                ->setParameter('isLate', $isLate);
+        }
+
+        return $qb->getQuery()->getResult();
     }
 
 }
