@@ -27,9 +27,17 @@ final class BookController extends AbstractController
     {
         $page = max(1, $request->query->getInt('page', 1));
         $limit = min(50, max(1, $request->query->getInt('limit', 10)));
+        $filters = [];
 
-        $books = $this->bookRepository->findPaginated($page, $limit);
-        $total = $this->bookRepository->countAll();
+        $error = $this->validateSearchFilters($request);
+        if ($error !== null) {
+            return $this->json(['message' => $error], Response::HTTP_BAD_REQUEST);
+        }
+
+        $filters = $this->extractSearchFilters($request);
+
+        $books = $this->bookRepository->findPaginatedWithFilters($page, $limit, $filters);
+        $total = $this->bookRepository->countFiltered($filters);
         $pages = max(1, (int) ceil($total / $limit));
 
         return $this->json([
@@ -37,6 +45,7 @@ final class BookController extends AbstractController
                 fn (Book $book): array => $this->formatBook($book),
                 $books
             ),
+            'filters' => $this->formatAppliedFilters($filters),
             'pagination' => [
                 'page' => $page,
                 'limit' => $limit,
@@ -146,6 +155,90 @@ final class BookController extends AbstractController
         return null;
     }
 
+    private function validateSearchFilters(Request $request): ?string
+    {
+        $publishedFrom = $request->query->get('publishedFrom');
+        $publishedTo = $request->query->get('publishedTo');
+
+        if ($publishedFrom !== null && $publishedFrom !== '' && !$this->isValidDate((string) $publishedFrom)) {
+            return 'Le filtre "publishedFrom" est invalide';
+        }
+
+        if ($publishedTo !== null && $publishedTo !== '' && !$this->isValidDate((string) $publishedTo)) {
+            return 'Le filtre "publishedTo" est invalide';
+        }
+
+        if ($publishedFrom && $publishedTo) {
+            $from = new \DateTimeImmutable((string) $publishedFrom);
+            $to = new \DateTimeImmutable((string) $publishedTo);
+
+            if ($from > $to) {
+                return 'Le filtre "publishedFrom" doit etre anterieur ou egal a "publishedTo"';
+            }
+        }
+
+        $available = $request->query->get('available');
+        if ($available !== null && $available !== '' && $this->parseBoolean($available) === null) {
+            return 'Le filtre "available" doit etre true, false, 1 ou 0';
+        }
+
+        $categoryId = $request->query->get('categoryId');
+        if ($categoryId !== null && $categoryId !== '' && filter_var($categoryId, FILTER_VALIDATE_INT) === false) {
+            return 'Le filtre "categoryId" doit etre un entier';
+        }
+
+        return null;
+    }
+
+    private function extractSearchFilters(Request $request): array
+    {
+        $filters = [];
+        $q = trim((string) $request->query->get('q', ''));
+        $author = trim((string) $request->query->get('author', ''));
+        $categoryId = $request->query->get('categoryId');
+        $publishedFrom = $request->query->get('publishedFrom');
+        $publishedTo = $request->query->get('publishedTo');
+        $available = $request->query->get('available');
+
+        if ($q !== '') {
+            $filters['q'] = $q;
+        }
+
+        if ($author !== '') {
+            $filters['author'] = $author;
+        }
+
+        if ($categoryId !== null && $categoryId !== '') {
+            $filters['categoryId'] = (int) $categoryId;
+        }
+
+        if ($publishedFrom !== null && $publishedFrom !== '') {
+            $filters['publishedFrom'] = new \DateTimeImmutable((string) $publishedFrom);
+        }
+
+        if ($publishedTo !== null && $publishedTo !== '') {
+            $filters['publishedTo'] = new \DateTimeImmutable((string) $publishedTo);
+        }
+
+        if ($available !== null && $available !== '') {
+            $filters['available'] = $this->parseBoolean((string) $available);
+        }
+
+        return $filters;
+    }
+
+    private function formatAppliedFilters(array $filters): array
+    {
+        return [
+            'q' => $filters['q'] ?? null,
+            'author' => $filters['author'] ?? null,
+            'categoryId' => $filters['categoryId'] ?? null,
+            'available' => $filters['available'] ?? null,
+            'publishedFrom' => isset($filters['publishedFrom']) ? $filters['publishedFrom']->format('Y-m-d') : null,
+            'publishedTo' => isset($filters['publishedTo']) ? $filters['publishedTo']->format('Y-m-d') : null,
+        ];
+    }
+
     private function findCategory(array $data): ?Category
     {
         return $this->categoryRepository->find((int) $data['categoryId']);
@@ -183,6 +276,15 @@ final class BookController extends AbstractController
         } catch (\Exception) {
             return false;
         }
+    }
+
+    private function parseBoolean(string $value): ?bool
+    {
+        return match (strtolower(trim($value))) {
+            '1', 'true' => true,
+            '0', 'false' => false,
+            default => null,
+        };
     }
 
     private function bookToData(Book $book): array
