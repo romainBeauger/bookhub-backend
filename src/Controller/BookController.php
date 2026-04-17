@@ -26,7 +26,7 @@ final class BookController extends AbstractController
     public function index(Request $request): JsonResponse
     {
         $page = max(1, $request->query->getInt('page', 1));
-        $limit = min(50, max(1, $request->query->getInt('limit', 10)));
+        $limit = min(50, max(1, $request->query->getInt('limit', 12)));
         $filters = [];
 
         $error = $this->validateSearchFilters($request);
@@ -187,6 +187,11 @@ final class BookController extends AbstractController
             return 'Le filtre "categoryId" doit etre un entier';
         }
 
+        $sort = $request->query->get('sort');
+        if ($sort !== null && $sort !== '' && !$this->isValidSortDirection((string) $sort)) {
+            return 'Le filtre "sort" doit etre asc ou desc';
+        }
+
         return null;
     }
 
@@ -199,6 +204,7 @@ final class BookController extends AbstractController
         $publishedFrom = $request->query->get('publishedFrom');
         $publishedTo = $request->query->get('publishedTo');
         $available = $request->query->get('available');
+        $sort = trim((string) $request->query->get('sort', ''));
 
         if ($q !== '') {
             $filters['q'] = $q;
@@ -224,6 +230,10 @@ final class BookController extends AbstractController
             $filters['available'] = $this->parseBoolean((string) $available);
         }
 
+        if ($sort !== '') {
+            $filters['sort'] = strtolower($sort);
+        }
+
         return $filters;
     }
 
@@ -236,6 +246,7 @@ final class BookController extends AbstractController
             'available' => $filters['available'] ?? null,
             'publishedFrom' => isset($filters['publishedFrom']) ? $filters['publishedFrom']->format('Y-m-d') : null,
             'publishedTo' => isset($filters['publishedTo']) ? $filters['publishedTo']->format('Y-m-d') : null,
+            'sort' => $filters['sort'] ?? 'asc',
         ];
     }
 
@@ -285,6 +296,11 @@ final class BookController extends AbstractController
             '0', 'false' => false,
             default => null,
         };
+    }
+
+    private function isValidSortDirection(string $value): bool
+    {
+        return in_array(strtolower(trim($value)), ['asc', 'desc'], true);
     }
 
     private function bookToData(Book $book): array
