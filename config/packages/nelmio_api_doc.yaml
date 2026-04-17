@@ -1,0 +1,20 @@
+nelmio_api_doc:
+    documentation:
+        info:
+            title: BookHub API
+            description: API de gestion de bibliothèque communautaire
+            version: 1.0.0
+        components:
+            securitySchemes:
+                Bearer:
+                    type: http
+                    scheme: bearer
+                    bearerFormat: JWT
+        security:
+            - Bearer: []
+    areas:
+        default:
+            path_patterns:
+                - ^/api(?!/doc)
+    html_config:
+        assets_mode: cdn

@@ -6,6 +6,8 @@ use App\Entity\Book;
 use App\Entity\Category;
 use App\Repository\CategoryRepository;
 use Doctrine\ORM\EntityManagerInterface;
+use Nelmio\ApiDocBundle\Attribute\Security;
+use OpenApi\Attributes as OA;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -13,6 +15,7 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
 #[Route('/api/categories')]
+#[OA\Tag(name: 'Catégories')]
 final class CategoryController extends AbstractController
 {
     public function __construct(
@@ -21,6 +24,15 @@ final class CategoryController extends AbstractController
     ) {}
 
     #[Route('', name: 'category_index', methods: ['GET'])]
+    #[OA\Get(
+        path: '/api/categories',
+        summary: 'Lister toutes les catégories',
+        responses: [
+            new OA\Response(response: 200, description: 'Liste des catégories'),
+            new OA\Response(response: 401, description: 'Non authentifié'),
+        ]
+    )]
+    #[Security(name: 'Bearer')]
     public function index(): JsonResponse
     {
         $categories = $this->categoryRepository->findAll();
@@ -32,12 +44,44 @@ final class CategoryController extends AbstractController
     }
 
     #[Route('/{id}', name: 'category_show', requirements: ['id' => '\d+'], methods: ['GET'])]
+    #[OA\Get(
+        path: '/api/categories/{id}',
+        summary: 'Récupérer une catégorie avec ses livres',
+        parameters: [
+            new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'Catégorie retournée avec ses livres'),
+            new OA\Response(response: 401, description: 'Non authentifié'),
+            new OA\Response(response: 404, description: 'Catégorie introuvable'),
+        ]
+    )]
+    #[Security(name: 'Bearer')]
     public function show(Category $category): JsonResponse
     {
         return $this->json($this->formatCategory($category, true));
     }
 
     #[Route('', name: 'category_create', methods: ['POST'])]
+    #[OA\Post(
+        path: '/api/categories',
+        summary: 'Créer une catégorie',
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['name'],
+                properties: [
+                    new OA\Property(property: 'name', type: 'string', example: 'Roman'),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(response: 201, description: 'Catégorie créée'),
+            new OA\Response(response: 400, description: 'Données invalides ou catégorie déjà existante'),
+            new OA\Response(response: 401, description: 'Non authentifié'),
+        ]
+    )]
+    #[Security(name: 'Bearer')]
     public function create(Request $request): JsonResponse
     {
         $data = json_decode($request->getContent(), true);
@@ -64,6 +108,27 @@ final class CategoryController extends AbstractController
     }
 
     #[Route('/{id}', name: 'category_update', requirements: ['id' => '\d+'], methods: ['PUT', 'PATCH'])]
+    #[OA\Patch(
+        path: '/api/categories/{id}',
+        summary: 'Modifier une catégorie',
+        parameters: [
+            new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+        ],
+        requestBody: new OA\RequestBody(
+            content: new OA\JsonContent(
+                properties: [
+                    new OA\Property(property: 'name', type: 'string', example: 'Science-fiction'),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(response: 200, description: 'Catégorie mise à jour'),
+            new OA\Response(response: 400, description: 'Données invalides'),
+            new OA\Response(response: 401, description: 'Non authentifié'),
+            new OA\Response(response: 404, description: 'Catégorie introuvable'),
+        ]
+    )]
+    #[Security(name: 'Bearer')]
     public function update(Category $category, Request $request): JsonResponse
     {
         $data = json_decode($request->getContent(), true);
@@ -89,6 +154,20 @@ final class CategoryController extends AbstractController
     }
 
     #[Route('/{id}', name: 'category_delete', requirements: ['id' => '\d+'], methods: ['DELETE'])]
+    #[OA\Delete(
+        path: '/api/categories/{id}',
+        summary: 'Supprimer une catégorie',
+        parameters: [
+            new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+        ],
+        responses: [
+            new OA\Response(response: 204, description: 'Catégorie supprimée'),
+            new OA\Response(response: 400, description: 'Catégorie contient des livres'),
+            new OA\Response(response: 401, description: 'Non authentifié'),
+            new OA\Response(response: 404, description: 'Catégorie introuvable'),
+        ]
+    )]
+    #[Security(name: 'Bearer')]
     public function delete(Category $category): JsonResponse
     {
         if (!$category->getBooks()->isEmpty()) {
