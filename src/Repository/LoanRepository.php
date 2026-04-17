@@ -60,9 +60,10 @@ class LoanRepository extends ServiceEntityRepository
     {
         return $this->createQueryBuilder('l')
             ->andWhere('l.dueDate < :now')
-            ->andWhere('l.status = :status')
+            ->andWhere('l.status = :statusActive OR l.status = :statusOverdue')
+            ->setParameter('statusActive', Loan::STATUS_ACTIVE)
+            ->setParameter('statusOverdue', Loan::STATUS_OVERDUE)
             ->setParameter('now', new \DateTimeImmutable())
-            ->setParameter('status', Loan::STATUS_ACTIVE)
             ->orderBy('l.dueDate', 'ASC')
             ->getQuery()
             ->getResult();
@@ -82,6 +83,26 @@ class LoanRepository extends ServiceEntityRepository
         }
 
         return $qb->getQuery()->getResult();
+    }
+
+    public function countActive(): int
+    {
+        return(int) $this->createQueryBuilder('l')
+            ->select('COUNT(l.id)')
+            ->andWhere('l.status = :statusActive OR l.status = :statusOverdue')
+            ->setParameter('statusActive', Loan::STATUS_ACTIVE)
+            ->setParameter('statusOverdue', Loan::STATUS_OVERDUE)
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    public function countLate(): int
+    {
+        return (int) $this->createQueryBuilder('l')
+            ->select('COUNT(l.id)')
+            ->andWhere('l.isLate = true')
+            ->getQuery()
+            ->getSingleScalarResult();
     }
 
 }
