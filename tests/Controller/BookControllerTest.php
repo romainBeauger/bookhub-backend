@@ -159,7 +159,7 @@ class BookControllerTest extends TestCase
 
         $payload = json_decode($response->getContent() ?: '', true);
         $this->assertSame(12, $payload['pagination']['limit']);
-        $this->assertSame('asc', $payload['filters']['sort']);
+        $this->assertSame('random', $payload['filters']['sort']);
     }
 
     public function testIndexRetourneUneErreurSiLeTriEstInvalide(): void
@@ -171,7 +171,35 @@ class BookControllerTest extends TestCase
         $this->assertSame(Response::HTTP_BAD_REQUEST, $response->getStatusCode());
 
         $payload = json_decode($response->getContent() ?: '', true);
-        $this->assertSame('Le filtre "sort" doit etre asc ou desc', $payload['message']);
+        $this->assertSame('Le filtre "sort" doit etre asc, desc ou random', $payload['message']);
+    }
+
+    public function testIndexAccepteLeTriRandom(): void
+    {
+        $this->bookRepository
+            ->expects($this->once())
+            ->method('findPaginatedWithFilters')
+            ->with(
+                1,
+                12,
+                $this->callback(fn (array $filters): bool => ($filters['sort'] ?? null) === 'random')
+            )
+            ->willReturn([]);
+
+        $this->bookRepository
+            ->expects($this->once())
+            ->method('countFiltered')
+            ->with($this->isType('array'))
+            ->willReturn(0);
+
+        $response = $this->controller->index(new Request([
+            'sort' => 'random',
+        ]));
+
+        $this->assertSame(Response::HTTP_OK, $response->getStatusCode());
+
+        $payload = json_decode($response->getContent() ?: '', true);
+        $this->assertSame('random', $payload['filters']['sort']);
     }
 
     private function forceEntityId(object $entity, int $id): void

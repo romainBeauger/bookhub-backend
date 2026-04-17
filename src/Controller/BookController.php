@@ -189,7 +189,7 @@ final class BookController extends AbstractController
 
         $sort = $request->query->get('sort');
         if ($sort !== null && $sort !== '' && !$this->isValidSortDirection((string) $sort)) {
-            return 'Le filtre "sort" doit etre asc ou desc';
+            return 'Le filtre "sort" doit etre asc, desc ou random';
         }
 
         return null;
@@ -246,7 +246,7 @@ final class BookController extends AbstractController
             'available' => $filters['available'] ?? null,
             'publishedFrom' => isset($filters['publishedFrom']) ? $filters['publishedFrom']->format('Y-m-d') : null,
             'publishedTo' => isset($filters['publishedTo']) ? $filters['publishedTo']->format('Y-m-d') : null,
-            'sort' => $filters['sort'] ?? 'asc',
+            'sort' => $filters['sort'] ?? 'random',
         ];
     }
 
@@ -300,7 +300,7 @@ final class BookController extends AbstractController
 
     private function isValidSortDirection(string $value): bool
     {
-        return in_array(strtolower(trim($value)), ['asc', 'desc'], true);
+        return in_array(strtolower(trim($value)), ['asc', 'desc', 'random'], true);
     }
 
     private function bookToData(Book $book): array

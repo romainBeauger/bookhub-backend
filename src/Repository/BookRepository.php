@@ -42,14 +42,24 @@ class BookRepository extends ServiceEntityRepository
     public function findPaginatedWithFilters(int $page, int $limit, array $filters): array
     {
         $offset = ($page - 1) * $limit;
+        $queryBuilder = $this->createFilteredQueryBuilder($filters);
 
-        return $this->createFilteredQueryBuilder($filters)
+        if (($filters['sort'] ?? 'random') === 'random') {
+            $books = $queryBuilder
+                ->getQuery()
+                ->getResult();
+
+            shuffle($books);
+
+            return array_slice($books, $offset, $limit);
+        }
+
+        return $queryBuilder
             ->orderBy('b.title', $this->resolveSortDirection($filters))
             ->setFirstResult($offset)
             ->setMaxResults($limit)
             ->getQuery()
-            ->getResult()
-        ;
+            ->getResult();
     }
 
     public function countAll(): int
@@ -137,6 +147,6 @@ class BookRepository extends ServiceEntityRepository
      */
     private function resolveSortDirection(array $filters): string
     {
-        return (($filters['sort'] ?? 'asc') === 'desc') ? 'DESC' : 'ASC';
+        return (($filters['sort'] ?? 'random') === 'desc') ? 'DESC' : 'ASC';
     }
 }
