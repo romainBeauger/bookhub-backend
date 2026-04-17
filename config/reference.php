@@ -264,7 +264,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         formats?: array<string, string|list<scalar|Param|null>>,
  *     },
  *     assets?: bool|array{ // Assets configuration
- *         enabled?: bool|Param, // Default: false
+ *         enabled?: bool|Param, // Default: true
  *         strict_mode?: bool|Param, // Throw an exception if an entry is missing from the manifest.json. // Default: false
  *         version_strategy?: scalar|Param|null, // Default: null
  *         version?: scalar|Param|null, // Default: null
@@ -716,9 +716,9 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *     handle_symfony_errors?: bool|Param, // Allows to handle symfony exceptions. // Default: false
  *     enable_swagger?: bool|Param, // Enable the Swagger documentation and export. // Default: true
  *     enable_json_streamer?: bool|Param, // Enable json streamer. // Default: false
- *     enable_swagger_ui?: bool|Param, // Enable Swagger UI // Default: false
- *     enable_re_doc?: bool|Param, // Enable ReDoc // Default: false
- *     enable_scalar?: bool|Param, // Enable Scalar API Reference // Default: false
+ *     enable_swagger_ui?: bool|Param, // Enable Swagger UI // Default: true
+ *     enable_re_doc?: bool|Param, // Enable ReDoc // Default: true
+ *     enable_scalar?: bool|Param, // Enable Scalar API Reference // Default: true
  *     enable_entrypoint?: bool|Param, // Enable the entrypoint // Default: true
  *     enable_docs?: bool|Param, // Enable the docs // Default: true
  *     enable_profiler?: bool|Param, // Enable the data collector and the WebProfilerBundle integration. // Default: true
@@ -1675,6 +1675,89 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *     generate_final_classes?: bool|Param, // Default: true
  *     generate_final_entities?: bool|Param, // Default: false
  * }
+ * @psalm-type NelmioApiDocConfig = array{
+ *     type_info?: bool|Param, // Use the symfony/type-info component for determining types. // Default: true
+ *     use_validation_groups?: bool|Param, // If true, `groups` passed to #[Model] attributes will be used to limit validation constraints // Default: false
+ *     operation_id_generation?: \Nelmio\ApiDocBundle\Describer\OperationIdGeneration::ALWAYS_PREPEND|\Nelmio\ApiDocBundle\Describer\OperationIdGeneration::CONDITIONALLY_PREPEND|\Nelmio\ApiDocBundle\Describer\OperationIdGeneration::NO_PREPEND|"always_prepend"|"conditionally_prepend"|"no_prepend"|Param, // How to generate operation ids // Default: "always_prepend"
+ *     cache?: array{
+ *         pool?: scalar|Param|null, // define cache pool to use // Default: null
+ *         item_id?: scalar|Param|null, // define cache item id // Default: null
+ *     },
+ *     documentation?: array<string, mixed>,
+ *     media_types?: list<scalar|Param|null>,
+ *     html_config?: array{ // UI configuration options
+ *         assets_mode?: scalar|Param|null, // Default: "cdn"
+ *         swagger_ui_config?: array<mixed>,
+ *         redocly_config?: array<mixed>,
+ *         scalar_config?: array<mixed>,
+ *         stoplight_config?: array<mixed>,
+ *     },
+ *     areas?: array<string, array{ // Default: {"default":{"path_patterns":[],"host_patterns":[],"with_attribute":false,"documentation":[],"name_patterns":[],"disable_default_routes":false,"cache":[],"security":[]}}
+ *         path_patterns?: list<scalar|Param|null>,
+ *         host_patterns?: list<scalar|Param|null>,
+ *         name_patterns?: list<scalar|Param|null>,
+ *         security?: array<string, array{ // Default: []
+ *             type?: scalar|Param|null,
+ *             scheme?: scalar|Param|null,
+ *             in?: scalar|Param|null,
+ *             name?: scalar|Param|null,
+ *             description?: scalar|Param|null,
+ *             openIdConnectUrl?: scalar|Param|null,
+ *             ...<string, mixed>
+ *         }>,
+ *         with_attribute?: bool|Param, // whether to filter by attributes // Default: false
+ *         disable_default_routes?: bool|Param, // if set disables default routes without attributes // Default: false
+ *         documentation?: array<string, mixed>,
+ *         cache?: array{
+ *             pool?: scalar|Param|null, // define cache pool to use // Default: null
+ *             item_id?: scalar|Param|null, // define cache item id // Default: null
+ *         },
+ *     }>,
+ *     models?: array{
+ *         use_jms?: bool|Param, // Default: false
+ *         names?: list<array{ // Default: []
+ *             alias?: scalar|Param|null,
+ *             type?: scalar|Param|null,
+ *             groups?: mixed, // Default: null
+ *             options?: mixed, // Default: null
+ *             serializationContext?: list<mixed>,
+ *             areas?: list<scalar|Param|null>,
+ *         }>,
+ *     },
+ * }
+ * @psalm-type TwigConfig = array{
+ *     form_themes?: list<scalar|Param|null>,
+ *     globals?: array<string, array{ // Default: []
+ *         id?: scalar|Param|null,
+ *         type?: scalar|Param|null,
+ *         value?: mixed,
+ *     }>,
+ *     autoescape_service?: scalar|Param|null, // Default: null
+ *     autoescape_service_method?: scalar|Param|null, // Default: null
+ *     base_template_class?: scalar|Param|null, // Deprecated: The child node "base_template_class" at path "twig.base_template_class" is deprecated.
+ *     cache?: scalar|Param|null, // Default: true
+ *     charset?: scalar|Param|null, // Default: "%kernel.charset%"
+ *     debug?: bool|Param, // Default: "%kernel.debug%"
+ *     strict_variables?: bool|Param, // Default: "%kernel.debug%"
+ *     auto_reload?: scalar|Param|null,
+ *     optimizations?: int|Param,
+ *     default_path?: scalar|Param|null, // The default path used to load templates. // Default: "%kernel.project_dir%/templates"
+ *     file_name_pattern?: list<scalar|Param|null>,
+ *     paths?: array<string, mixed>,
+ *     date?: array{ // The default format options used by the date filter.
+ *         format?: scalar|Param|null, // Default: "F j, Y H:i"
+ *         interval_format?: scalar|Param|null, // Default: "%d days"
+ *         timezone?: scalar|Param|null, // The timezone used when formatting dates, when set to null, the timezone returned by date_default_timezone_get() is used. // Default: null
+ *     },
+ *     number_format?: array{ // The default format options for the number_format filter.
+ *         decimals?: int|Param, // Default: 0
+ *         decimal_point?: scalar|Param|null, // Default: "."
+ *         thousands_separator?: scalar|Param|null, // Default: ","
+ *     },
+ *     mailer?: array{
+ *         html_to_text_converter?: scalar|Param|null, // A service implementing the "Symfony\Component\Mime\HtmlToTextConverter\HtmlToTextConverterInterface". // Default: null
+ *     },
+ * }
  * @psalm-type ConfigType = array{
  *     imports?: ImportsConfig,
  *     parameters?: ParametersConfig,
@@ -1686,6 +1769,8 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *     security?: SecurityConfig,
  *     lexik_jwt_authentication?: LexikJwtAuthenticationConfig,
  *     nelmio_cors?: NelmioCorsConfig,
+ *     nelmio_api_doc?: NelmioApiDocConfig,
+ *     twig?: TwigConfig,
  *     "when@dev"?: array{
  *         imports?: ImportsConfig,
  *         parameters?: ParametersConfig,
@@ -1698,6 +1783,8 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         lexik_jwt_authentication?: LexikJwtAuthenticationConfig,
  *         nelmio_cors?: NelmioCorsConfig,
  *         maker?: MakerConfig,
+ *         nelmio_api_doc?: NelmioApiDocConfig,
+ *         twig?: TwigConfig,
  *     },
  *     "when@prod"?: array{
  *         imports?: ImportsConfig,
@@ -1710,6 +1797,8 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         security?: SecurityConfig,
  *         lexik_jwt_authentication?: LexikJwtAuthenticationConfig,
  *         nelmio_cors?: NelmioCorsConfig,
+ *         nelmio_api_doc?: NelmioApiDocConfig,
+ *         twig?: TwigConfig,
  *     },
  *     "when@test"?: array{
  *         imports?: ImportsConfig,
@@ -1722,6 +1811,8 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         security?: SecurityConfig,
  *         lexik_jwt_authentication?: LexikJwtAuthenticationConfig,
  *         nelmio_cors?: NelmioCorsConfig,
+ *         nelmio_api_doc?: NelmioApiDocConfig,
+ *         twig?: TwigConfig,
  *     },
  *     ...<string, ExtensionType|array{ // extra keys must follow the when@%env% pattern or match an extension alias
  *         imports?: ImportsConfig,

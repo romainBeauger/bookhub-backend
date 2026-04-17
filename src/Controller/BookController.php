@@ -7,6 +7,8 @@ use App\Entity\Category;
 use App\Repository\BookRepository;
 use App\Repository\CategoryRepository;
 use Doctrine\ORM\EntityManagerInterface;
+use Nelmio\ApiDocBundle\Attribute\Security;
+use OpenApi\Attributes as OA;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -14,6 +16,7 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
 #[Route('/api/books')]
+#[OA\Tag(name: 'Livres')]
 final class BookController extends AbstractController
 {
     public function __construct(
@@ -23,6 +26,27 @@ final class BookController extends AbstractController
     ) {}
 
     #[Route('', name: 'book_index', methods: ['GET'])]
+    #[OA\Get(
+        path: '/api/books',
+        summary: 'Lister les livres avec filtres et pagination',
+        parameters: [
+            new OA\Parameter(name: 'page', in: 'query', schema: new OA\Schema(type: 'integer', default: 1)),
+            new OA\Parameter(name: 'limit', in: 'query', schema: new OA\Schema(type: 'integer', default: 12)),
+            new OA\Parameter(name: 'q', in: 'query', description: 'Recherche par titre', schema: new OA\Schema(type: 'string')),
+            new OA\Parameter(name: 'author', in: 'query', schema: new OA\Schema(type: 'string')),
+            new OA\Parameter(name: 'categoryId', in: 'query', schema: new OA\Schema(type: 'integer')),
+            new OA\Parameter(name: 'available', in: 'query', schema: new OA\Schema(type: 'boolean')),
+            new OA\Parameter(name: 'publishedFrom', in: 'query', schema: new OA\Schema(type: 'string', example: '2000-01-01')),
+            new OA\Parameter(name: 'publishedTo', in: 'query', schema: new OA\Schema(type: 'string', example: '2026-01-01')),
+            new OA\Parameter(name: 'sort', in: 'query', schema: new OA\Schema(type: 'string', enum: ['asc', 'desc', 'random'])),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'Liste paginée des livres'),
+            new OA\Response(response: 400, description: 'Filtres invalides'),
+            new OA\Response(response: 401, description: 'Non authentifié'),
+        ]
+    )]
+    #[Security(name: 'Bearer')]
     public function index(Request $request): JsonResponse
     {
         $page = max(1, $request->query->getInt('page', 1));
@@ -56,12 +80,52 @@ final class BookController extends AbstractController
     }
 
     #[Route('/{id}', name: 'book_show', requirements: ['id' => '\d+'], methods: ['GET'])]
+    #[OA\Get(
+        path: '/api/books/{id}',
+        summary: 'Récupérer un livre par son ID',
+        parameters: [
+            new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'Livre retourné'),
+            new OA\Response(response: 401, description: 'Non authentifié'),
+            new OA\Response(response: 404, description: 'Livre introuvable'),
+        ]
+    )]
+    #[Security(name: 'Bearer')]
     public function show(Book $book): JsonResponse
     {
         return $this->json($this->formatBook($book));
     }
 
     #[Route('', name: 'book_create', methods: ['POST'])]
+    #[OA\Post(
+        path: '/api/books',
+        summary: 'Créer un livre',
+        requestBody: new OA\RequestBody(
+            required: true,
+            content: new OA\JsonContent(
+                required: ['title', 'author', 'isbn', 'totalCopies', 'availableCopies', 'categoryId'],
+                properties: [
+                    new OA\Property(property: 'title', type: 'string', example: 'Le Petit Prince'),
+                    new OA\Property(property: 'author', type: 'string', example: 'Antoine de Saint-Exupéry'),
+                    new OA\Property(property: 'isbn', type: 'string', example: '978-2070612758'),
+                    new OA\Property(property: 'description', type: 'string'),
+                    new OA\Property(property: 'totalCopies', type: 'integer', example: 3),
+                    new OA\Property(property: 'availableCopies', type: 'integer', example: 3),
+                    new OA\Property(property: 'categoryId', type: 'integer', example: 1),
+                    new OA\Property(property: 'publishedAt', type: 'string', example: '1943-04-06'),
+                    new OA\Property(property: 'image', type: 'string'),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(response: 201, description: 'Livre créé'),
+            new OA\Response(response: 400, description: 'Données invalides ou ISBN déjà utilisé'),
+            new OA\Response(response: 401, description: 'Non authentifié'),
+        ]
+    )]
+    #[Security(name: 'Bearer')]
     public function create(Request $request): JsonResponse
     {
         $data = json_decode($request->getContent(), true);
@@ -93,6 +157,32 @@ final class BookController extends AbstractController
     }
 
     #[Route('/{id}', name: 'book_update', requirements: ['id' => '\d+'], methods: ['PUT', 'PATCH'])]
+    #[OA\Patch(
+        path: '/api/books/{id}',
+        summary: 'Modifier un livre (partiel ou complet)',
+        parameters: [
+            new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+        ],
+        requestBody: new OA\RequestBody(
+            content: new OA\JsonContent(
+                properties: [
+                    new OA\Property(property: 'title', type: 'string'),
+                    new OA\Property(property: 'author', type: 'string'),
+                    new OA\Property(property: 'isbn', type: 'string'),
+                    new OA\Property(property: 'totalCopies', type: 'integer'),
+                    new OA\Property(property: 'availableCopies', type: 'integer'),
+                    new OA\Property(property: 'categoryId', type: 'integer'),
+                ]
+            )
+        ),
+        responses: [
+            new OA\Response(response: 200, description: 'Livre mis à jour'),
+            new OA\Response(response: 400, description: 'Données invalides'),
+            new OA\Response(response: 401, description: 'Non authentifié'),
+            new OA\Response(response: 404, description: 'Livre introuvable'),
+        ]
+    )]
+    #[Security(name: 'Bearer')]
     public function update(Book $book, Request $request): JsonResponse
     {
         $data = json_decode($request->getContent(), true);
@@ -123,6 +213,19 @@ final class BookController extends AbstractController
     }
 
     #[Route('/{id}', name: 'book_delete', requirements: ['id' => '\d+'], methods: ['DELETE'])]
+    #[OA\Delete(
+        path: '/api/books/{id}',
+        summary: 'Supprimer un livre',
+        parameters: [
+            new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+        ],
+        responses: [
+            new OA\Response(response: 204, description: 'Livre supprimé'),
+            new OA\Response(response: 401, description: 'Non authentifié'),
+            new OA\Response(response: 404, description: 'Livre introuvable'),
+        ]
+    )]
+    #[Security(name: 'Bearer')]
     public function delete(Book $book): JsonResponse
     {
         $this->entityManager->remove($book);

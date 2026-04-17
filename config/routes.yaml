@@ -12,3 +12,8 @@ controllers:
 api_auth_login:
     path: /api/auth/login
     methods: [POST]
+nelmio_api_doc_scalar:
+    path: /api/doc/
+    methods: [GET]
+    defaults:
+        _controller: nelmio_api_doc.controller.scalar
