@@ -33,7 +33,8 @@ class BookRepository extends ServiceEntityRepository
      *     categoryId?: int,
      *     available?: bool,
      *     publishedFrom?: \DateTimeImmutable,
-     *     publishedTo?: \DateTimeImmutable
+     *     publishedTo?: \DateTimeImmutable,
+     *     sort?: string
      * } $filters
      *
      * @return Book[]
@@ -43,7 +44,7 @@ class BookRepository extends ServiceEntityRepository
         $offset = ($page - 1) * $limit;
 
         return $this->createFilteredQueryBuilder($filters)
-            ->orderBy('b.title', 'ASC')
+            ->orderBy('b.title', $this->resolveSortDirection($filters))
             ->setFirstResult($offset)
             ->setMaxResults($limit)
             ->getQuery()
@@ -63,7 +64,8 @@ class BookRepository extends ServiceEntityRepository
      *     categoryId?: int,
      *     available?: bool,
      *     publishedFrom?: \DateTimeImmutable,
-     *     publishedTo?: \DateTimeImmutable
+     *     publishedTo?: \DateTimeImmutable,
+     *     sort?: string
      * } $filters
      */
     public function countFiltered(array $filters): int
@@ -81,7 +83,8 @@ class BookRepository extends ServiceEntityRepository
      *     categoryId?: int,
      *     available?: bool,
      *     publishedFrom?: \DateTimeImmutable,
-     *     publishedTo?: \DateTimeImmutable
+     *     publishedTo?: \DateTimeImmutable,
+     *     sort?: string
      * } $filters
      */
     private function createFilteredQueryBuilder(array $filters): QueryBuilder
@@ -127,5 +130,13 @@ class BookRepository extends ServiceEntityRepository
         }
 
         return $queryBuilder;
+    }
+
+    /**
+     * @param array{sort?: string} $filters
+     */
+    private function resolveSortDirection(array $filters): string
+    {
+        return (($filters['sort'] ?? 'asc') === 'desc') ? 'DESC' : 'ASC';
     }
 }
