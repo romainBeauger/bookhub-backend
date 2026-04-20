@@ -64,4 +64,16 @@ readonly class UserService
         $user->setPassword($this->passwordHasher->hashPassword($user, $data['nouveau_mot_de_passe']));
         $this->entityManager->flush();
     }
+
+    public function anonymize(User $user): void
+    {
+        $user->setFirstName('Utilisateur');
+        $user->setLastName('Supprimé');
+        $user->setEmail('deleted_' . $user->getId() . '@bookhub.local');
+        $user->setPassword('DELETED');
+        $user->setPhone(null);
+        $user->setIsActive(false);
+
+        $this->entityManager->flush();
+    }
 }
