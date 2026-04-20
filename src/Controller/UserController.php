@@ -112,8 +112,8 @@ class UserController extends AbstractController
             content: new OA\JsonContent(
                 required: ['current_password', 'new_password'],
                 properties: [
-                    new OA\Property(property: 'current_password', type: 'string', example: 'ancienMotDePasse'),
-                    new OA\Property(property: 'new_password', type: 'string', example: 'nouveauMotDePasse'),
+                    new OA\Property(property: 'ancien_mot_de_passe', type: 'string', example: 'ancienMotDePasse'),
+                    new OA\Property(property: 'nouveau_mot_de_passe', type: 'string', example: 'nouveauMotDePasse'),
                 ]
             )
         ),
