@@ -5,14 +5,11 @@ namespace App\Entity;
 use App\Repository\ReviewRepository;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
-use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity;
 use Symfony\Component\Validator\Constraints as Assert;
+use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity;
 
-#[UniqueEntity(fields: ['user', 'book'], message: 'Vous avez deja note ce livre.')]
+#[UniqueEntity(fields: ['user', 'book'], message: 'Vous avez déjà noté ce livre.')]
 #[ORM\Entity(repositoryClass: ReviewRepository::class)]
-#[ORM\Table(name: 'review', uniqueConstraints: [
-    new ORM\UniqueConstraint(name: 'uniq_review_user_book', columns: ['user_id', 'book_id'])
-])]
 class Review
 {
     #[ORM\Id]
@@ -20,18 +17,17 @@ class Review
     #[ORM\Column]
     private ?int $id = null;
 
-    #[Assert\NotNull(message: 'La note est obligatoire.')]
     #[Assert\Range(
         min: 1,
         max: 5,
-        notInRangeMessage: 'La note doit etre comprise entre {{ min }} et {{ max }}.',
+        notInRangeMessage: 'La note doit être comprise entre {{ min }} et {{ max }}.',
     )]
     #[ORM\Column]
     private ?int $rating = null;
 
     #[Assert\Length(
         max: 1000,
-        maxMessage: 'Le commentaire ne peut pas depasser {{ limit }} caracteres.',
+        maxMessage: 'Le commentaire ne peut pas dépasser {{ limit }} caractères.',
     )]
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     private ?string $comment = null;
@@ -45,8 +41,8 @@ class Review
     #[ORM\Column]
     private ?bool $isModerated = null;
 
+    #
     #[ORM\ManyToOne(inversedBy: 'reviews')]
-    #[ORM\JoinColumn(nullable: false)]
     private ?User $user = null;
 
     #[ORM\ManyToOne(inversedBy: 'reviews')]
