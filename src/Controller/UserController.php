@@ -139,4 +139,26 @@ class UserController extends AbstractController
 
         return $this->json(['message' => 'Mot de passe mis à jour.']);
     }
+
+    #[Route('/me', name: 'user_delete', methods: ['DELETE'])]
+    #[OA\Delete(
+        path: '/api/users/me',
+        summary: 'Supprimer (anonymiser) son propre compte',
+        responses: [
+            new OA\Response(response: 200, description: 'Compte anonymisé avec succès'),
+            new OA\Response(response: 401, description: 'Non authentifié'),
+        ]
+    )]
+    #[Security(name: 'Bearer')]
+    public function deleteAccount(): JsonResponse
+    {
+        /** @var \App\Entity\User $user */
+        $user = $this->getUser();
+
+        $this->userService->anonymize($user);
+
+        return $this->json(['message' => 'Votre compte a été supprimé.']);
+    }
+
+
 }
