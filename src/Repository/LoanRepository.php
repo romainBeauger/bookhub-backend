@@ -7,7 +7,6 @@ use App\Entity\Loan;
 use App\Entity\User;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
-use Doctrine\DBAL\ArrayParameterType;
 
 /**
  * @extends ServiceEntityRepository<Loan>
@@ -20,8 +19,6 @@ class LoanRepository extends ServiceEntityRepository
     }
 
     /**
-     * Retourne tous les emprunts d'un utilisateur, du plus récent au plus ancien.
-     *
      * @return Loan[]
      */
     public function findByUser(User $user): array
@@ -34,36 +31,53 @@ class LoanRepository extends ServiceEntityRepository
             ->getResult();
     }
 
-    /**
-     * Retourne l'emprunt actif d'un user pour un livre donné, ou null s'il n'existe pas.
-     * Utilisé pour vérifier qu'un user n'emprunte pas deux fois le même livre.
-     */
     public function findActiveLoanByUserAndBook(User $user, Book $book): ?Loan
     {
         return $this->createQueryBuilder('l')
             ->andWhere('l.user = :user')
             ->andWhere('l.book = :book')
-            ->andWhere('l.status = :status')
+            ->andWhere('l.status IN (:statuses)')
             ->setParameter('user', $user)
             ->setParameter('book', $book)
-            ->setParameter('status', Loan::STATUS_ACTIVE)
+            ->setParameter('statuses', [
+                Loan::STATUS_ACTIVE,
+                Loan::STATUS_OVERDUE,
+                Loan::STATUS_RETURN_REQUESTED,
+            ])
             ->getQuery()
             ->getOneOrNullResult();
     }
 
+    public function countActiveByUser(User $user): int
+    {
+        return (int) $this->createQueryBuilder('l')
+            ->select('COUNT(l.id)')
+            ->andWhere('l.user = :user')
+            ->andWhere('l.status IN (:statuses)')
+            ->setParameter('user', $user)
+            ->setParameter('statuses', [
+                Loan::STATUS_ACTIVE,
+                Loan::STATUS_OVERDUE,
+                Loan::STATUS_RETURN_REQUESTED,
+            ])
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
     /**
-     * Retourne tous les emprunts en retard (dueDate dépassée et pas encore rendus).
-     *
      * @return Loan[]
      */
     public function findOverdueLoans(): array
     {
         return $this->createQueryBuilder('l')
             ->andWhere('l.dueDate < :now')
-            ->andWhere('l.status = :statusActive OR l.status = :statusOverdue')
-            ->setParameter('statusActive', Loan::STATUS_ACTIVE)
-            ->setParameter('statusOverdue', Loan::STATUS_OVERDUE)
+            ->andWhere('l.status IN (:statuses)')
             ->setParameter('now', new \DateTimeImmutable())
+            ->setParameter('statuses', [
+                Loan::STATUS_ACTIVE,
+                Loan::STATUS_OVERDUE,
+                Loan::STATUS_RETURN_REQUESTED,
+            ])
             ->orderBy('l.dueDate', 'ASC')
             ->getQuery()
             ->getResult();
@@ -72,9 +86,12 @@ class LoanRepository extends ServiceEntityRepository
     public function findAllActive(?bool $isLate = null): array
     {
         $qb = $this->createQueryBuilder('l')
-            ->andWhere('l.status = :statusActive OR l.status = :statusOverdue')
-            ->setParameter('statusActive', Loan::STATUS_ACTIVE)
-            ->setParameter('statusOverdue', Loan::STATUS_OVERDUE)
+            ->andWhere('l.status IN (:statuses)')
+            ->setParameter('statuses', [
+                Loan::STATUS_ACTIVE,
+                Loan::STATUS_OVERDUE,
+                Loan::STATUS_RETURN_REQUESTED,
+            ])
             ->orderBy('l.loanDate', 'DESC');
 
         if ($isLate !== null) {
@@ -87,11 +104,14 @@ class LoanRepository extends ServiceEntityRepository
 
     public function countActive(): int
     {
-        return(int) $this->createQueryBuilder('l')
+        return (int) $this->createQueryBuilder('l')
             ->select('COUNT(l.id)')
-            ->andWhere('l.status = :statusActive OR l.status = :statusOverdue')
-            ->setParameter('statusActive', Loan::STATUS_ACTIVE)
-            ->setParameter('statusOverdue', Loan::STATUS_OVERDUE)
+            ->andWhere('l.status IN (:statuses)')
+            ->setParameter('statuses', [
+                Loan::STATUS_ACTIVE,
+                Loan::STATUS_OVERDUE,
+                Loan::STATUS_RETURN_REQUESTED,
+            ])
             ->getQuery()
             ->getSingleScalarResult();
     }
@@ -101,8 +121,13 @@ class LoanRepository extends ServiceEntityRepository
         return (int) $this->createQueryBuilder('l')
             ->select('COUNT(l.id)')
             ->andWhere('l.isLate = true')
+            ->andWhere('l.status IN (:statuses)')
+            ->setParameter('statuses', [
+                Loan::STATUS_ACTIVE,
+                Loan::STATUS_OVERDUE,
+                Loan::STATUS_RETURN_REQUESTED,
+            ])
             ->getQuery()
             ->getSingleScalarResult();
     }
-
 }

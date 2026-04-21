@@ -2,10 +2,11 @@
 
 namespace App\Controller;
 
+use App\Entity\Loan;
+use App\Entity\User;
 use App\Repository\BookRepository;
 use App\Repository\LoanRepository;
 use App\Services\LoanService;
-use App\Entity\Loan;
 use Nelmio\ApiDocBundle\Attribute\Security;
 use OpenApi\Attributes as OA;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -19,7 +20,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 class LoanController extends AbstractController
 {
     public function __construct(
-        private readonly LoanService    $loanService,
+        private readonly LoanService $loanService,
         private readonly BookRepository $bookRepository,
         private readonly LoanRepository $loanRepository,
     ) {}
@@ -39,24 +40,11 @@ class LoanController extends AbstractController
             )
         ),
         responses: [
-            new OA\Response(
-                response: 201,
-                description: 'Emprunt créé avec succès',
-                content: new OA\JsonContent(
-                    properties: [
-                        new OA\Property(property: 'id', type: 'integer', example: 1),
-                        new OA\Property(property: 'bookId', type: 'integer', example: 1),
-                        new OA\Property(property: 'bookTitle', type: 'string', example: 'Le Petit Prince'),
-                        new OA\Property(property: 'loanDate', type: 'string', example: '2026-04-17'),
-                        new OA\Property(property: 'dueDate', type: 'string', example: '2026-05-01'),
-                        new OA\Property(property: 'status', type: 'string', example: 'ACTIVE'),
-                    ]
-                )
-            ),
+            new OA\Response(response: 201, description: 'Emprunt cree avec succes'),
             new OA\Response(response: 400, description: 'Champ bookId manquant'),
-            new OA\Response(response: 401, description: 'Non authentifié'),
+            new OA\Response(response: 401, description: 'Non authentifie'),
             new OA\Response(response: 404, description: 'Livre introuvable'),
-            new OA\Response(response: 409, description: 'Livre indisponible ou déjà emprunté'),
+            new OA\Response(response: 409, description: 'Livre indisponible ou deja emprunte'),
         ]
     )]
     #[Security(name: 'Bearer')]
@@ -75,71 +63,48 @@ class LoanController extends AbstractController
         }
 
         try {
-            /** @var \App\Entity\User $user */
+            /** @var User $user */
             $user = $this->getUser();
             $loan = $this->loanService->createLoan($user, $book);
         } catch (\RuntimeException $e) {
             return $this->json(['error' => $e->getMessage()], 409);
         }
 
-        return $this->json([
-            'id'         => $loan->getId(),
-            'bookId'     => $book->getId(),
-            'bookTitle'  => $book->getTitle(),
-            'loanDate'   => $loan->getLoanDate()->format('Y-m-d'),
-            'dueDate'    => $loan->getDueDate()->format('Y-m-d'),
-            'status'     => $loan->getStatus(),
-        ], 201);
+        return $this->json($this->formatLoan($loan), 201);
     }
 
     #[Route('/me', name: 'loan_my_list', methods: ['GET'])]
     #[IsGranted('ROLE_USER')]
     #[OA\Get(
         path: '/api/loans/me',
-        summary: 'Mes emprunts (utilisateur connecté)',
+        summary: 'Mes emprunts',
         responses: [
-            new OA\Response(
-                response: 200,
-                description: 'Liste des emprunts de l\'utilisateur',
-                content: new OA\JsonContent(
-                    type: 'array',
-                    items: new OA\Items(
-                        properties: [
-                            new OA\Property(property: 'id', type: 'integer', example: 1),
-                            new OA\Property(property: 'bookTitle', type: 'string', example: 'Le Petit Prince'),
-                            new OA\Property(property: 'loanDate', type: 'string', example: '2026-04-17'),
-                            new OA\Property(property: 'dueDate', type: 'string', example: '2026-05-01'),
-                            new OA\Property(property: 'status', type: 'string', example: 'ACTIVE'),
-                            new OA\Property(property: 'isLate', type: 'boolean', example: false),
-                        ]
-                    )
-                )
-            ),
-            new OA\Response(response: 401, description: 'Non authentifié'),
+            new OA\Response(response: 200, description: 'Liste des emprunts de l utilisateur'),
+            new OA\Response(response: 401, description: 'Non authentifie'),
         ]
     )]
     #[Security(name: 'Bearer')]
     public function myLoans(): JsonResponse
     {
-        /** @var \App\Entity\User $user */
+        /** @var User $user */
         $user = $this->getUser();
         $loans = $this->loanService->getLoansByUser($user);
 
-        return $this->json(array_map(fn($l) => $this->formatLoan($l), $loans));
+        return $this->json(array_map(fn(Loan $loan) => $this->formatLoan($loan), $loans));
     }
 
     #[Route('', name: 'loan_list_all', methods: ['GET'])]
     #[IsGranted('ROLE_LIBRARIAN')]
     #[OA\Get(
         path: '/api/loans',
-        summary: 'Liste tous les emprunts actifs (bibliothécaire)',
+        summary: 'Lister les emprunts actifs',
         parameters: [
-            new OA\Parameter(name: 'is_late', in: 'query', required: false, schema: new OA\Schema(type: 'boolean'), description: 'Filtrer par retard'),
+            new OA\Parameter(name: 'is_late', in: 'query', required: false, schema: new OA\Schema(type: 'boolean')),
         ],
         responses: [
             new OA\Response(response: 200, description: 'Liste des emprunts actifs'),
-            new OA\Response(response: 401, description: 'Non authentifié'),
-            new OA\Response(response: 403, description: 'Accès refusé'),
+            new OA\Response(response: 401, description: 'Non authentifie'),
+            new OA\Response(response: 403, description: 'Acces refuse'),
         ]
     )]
     #[Security(name: 'Bearer')]
@@ -151,27 +116,67 @@ class LoanController extends AbstractController
 
         $loans = $this->loanService->getAllActiveLoans($isLate);
 
-        return $this->json(array_map(fn($l) => $this->formatLoan($l), $loans));
+        return $this->json(array_map(fn(Loan $loan) => $this->formatLoan($loan), $loans));
     }
 
-    #[Route('/{id}/return', name: 'loan_return', methods: ['PATCH'])]
-    #[IsGranted('ROLE_LIBRARIAN')]
+    #[Route('/{id}/return', name: 'loan_return_request', methods: ['PATCH'])]
+    #[IsGranted('ROLE_USER')]
     #[OA\Patch(
         path: '/api/loans/{id}/return',
-        summary: 'Enregistrer le retour d\'un livre (bibliothécaire)',
+        summary: 'Demander le retour d un livre',
         parameters: [
             new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
         ],
         responses: [
-            new OA\Response(response: 200, description: 'Retour enregistré avec succès'),
-            new OA\Response(response: 401, description: 'Non authentifié'),
-            new OA\Response(response: 403, description: 'Accès refusé'),
+            new OA\Response(response: 200, description: 'Retour demande avec succes'),
+            new OA\Response(response: 401, description: 'Non authentifie'),
+            new OA\Response(response: 403, description: 'Acces refuse'),
             new OA\Response(response: 404, description: 'Emprunt introuvable'),
-            new OA\Response(response: 409, description: 'Emprunt déjà retourné'),
+            new OA\Response(response: 409, description: 'Retour deja demande ou emprunt deja retourne'),
         ]
     )]
     #[Security(name: 'Bearer')]
     public function returnLoan(int $id): JsonResponse
+    {
+        /** @var User $currentUser */
+        $currentUser = $this->getUser();
+        $loan = $this->loanRepository->find($id);
+
+        if (!$loan) {
+            return $this->json(['error' => 'Emprunt introuvable.'], 404);
+        }
+
+        if (!$this->isLoanOwnedByUser($loan, $currentUser)) {
+            return $this->json(['error' => 'Acces refuse.'], 403);
+        }
+
+        try {
+            $loan = $this->loanService->requestReturn($loan);
+        } catch (\RuntimeException $e) {
+            return $this->json(['error' => $e->getMessage()], 409);
+        }
+
+        return $this->json($this->formatLoan($loan));
+    }
+
+    #[Route('/{id}/validate-return', name: 'loan_validate_return', methods: ['PATCH'])]
+    #[IsGranted('ROLE_LIBRARIAN')]
+    #[OA\Patch(
+        path: '/api/loans/{id}/validate-return',
+        summary: 'Valider le retour d un livre',
+        parameters: [
+            new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'Retour valide avec succes'),
+            new OA\Response(response: 401, description: 'Non authentifie'),
+            new OA\Response(response: 403, description: 'Acces refuse'),
+            new OA\Response(response: 404, description: 'Emprunt introuvable'),
+            new OA\Response(response: 409, description: 'Aucune demande en attente ou emprunt deja retourne'),
+        ]
+    )]
+    #[Security(name: 'Bearer')]
+    public function validateReturn(int $id): JsonResponse
     {
         $loan = $this->loanRepository->find($id);
 
@@ -180,7 +185,7 @@ class LoanController extends AbstractController
         }
 
         try {
-            $loan = $this->loanService->returnLoan($loan);
+            $loan = $this->loanService->validateReturn($loan);
         } catch (\RuntimeException $e) {
             return $this->json(['error' => $e->getMessage()], 409);
         }
@@ -190,16 +195,37 @@ class LoanController extends AbstractController
 
     private function formatLoan(Loan $loan): array
     {
+        $user = $loan->getUser();
+
         return [
-            'id'         => $loan->getId(),
-            'bookId'     => $loan->getBook()->getId(),
-            'bookTitle'  => $loan->getBook()->getTitle(),
-            'userId'     => $loan->getUser()->getId(),
-            'loanDate'   => $loan->getLoanDate()->format('Y-m-d'),
-            'dueDate'    => $loan->getDueDate()->format('Y-m-d'),
+            'id' => $loan->getId(),
+            'bookId' => $loan->getBook()->getId(),
+            'bookTitle' => $loan->getBook()->getTitle(),
+            'userId' => $user->getId(),
+            'user' => [
+                'firstName' => $user->getFirstName(),
+                'lastName' => $user->getLastName(),
+            ],
+            'loanDate' => $loan->getLoanDate()->format('Y-m-d'),
+            'dueDate' => $loan->getDueDate()->format('Y-m-d'),
             'returnedAt' => $loan->getReturnedAt()?->format('Y-m-d'),
-            'status'     => $loan->getStatus(),
-            'isLate'     => $loan->isLate(),
+            'status' => $loan->getStatus(),
+            'isLate' => $loan->isLate(),
         ];
+    }
+
+    private function isLoanOwnedByUser(Loan $loan, User $user): bool
+    {
+        $owner = $loan->getUser();
+
+        if (!$owner) {
+            return false;
+        }
+
+        if ($owner->getId() !== null && $user->getId() !== null) {
+            return $owner->getId() === $user->getId();
+        }
+
+        return $owner === $user;
     }
 }

@@ -8,10 +8,10 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Entity(repositoryClass: LoanRepository::class)]
 class Loan
 {
-
-    const STATUS_ACTIVE = 'ACTIVE';
-    const STATUS_RETURNED = 'RETURNED';
-    const STATUS_OVERDUE = 'OVERDUE';
+    public const STATUS_ACTIVE = 'ACTIVE';
+    public const STATUS_RETURN_REQUESTED = 'RETURN_REQUESTED';
+    public const STATUS_RETURNED = 'RETURNED';
+    public const STATUS_OVERDUE = 'OVERDUE';
 
     public function __construct()
     {

@@ -6,10 +6,10 @@ use App\Entity\Book;
 use App\Entity\Loan;
 use App\Entity\User;
 use App\Repository\LoanRepository;
+use App\Services\LoanService;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
-use App\Services\LoanService;
 
 class LoanServiceTest extends TestCase
 {
@@ -28,45 +28,66 @@ class LoanServiceTest extends TestCase
         $this->loanService = new LoanService($this->em, $this->loanRepository);
     }
 
-    // Vérifie que createLoan() lève une exception si le livre n'a plus de copies disponibles
     public function testCannotBorrowUnavailableBook(): void
     {
         $user = new User();
         $book = (new Book())->setAvailableCopies(0);
+
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage('Ce livre n\'est pas disponible.');
+
         $this->loanService->createLoan($user, $book);
     }
 
-    // Vérifie que createLoan() lève une exception si l'utilisateur a déjà ce livre en cours d'emprunt
     public function testCannotBorrowAlreadyBorrowedBook(): void
     {
         $user = new User();
         $book = (new Book())->setAvailableCopies(2);
 
-        // On dit au mock : ce livre est déjà emprunté par cet utilisateur
         $this->loanRepository
             ->method('findActiveLoanByUserAndBook')
             ->willReturn(new Loan());
 
         $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessage('Vous avez déjà ce livre en cours d\'emprunt.');
+        $this->expectExceptionMessage('Vous avez deja ce livre en cours d\'emprunt.');
 
         $this->loanService->createLoan($user, $book);
     }
 
-    // Vérifie que la date de retour calculée est bien aujourd'hui + 14 jours
+    public function testCannotBorrowMoreThanThreeActiveBooks(): void
+    {
+        $user = new User();
+        $book = (new Book())->setAvailableCopies(2);
+
+        $this->loanRepository
+            ->method('findActiveLoanByUserAndBook')
+            ->willReturn(null);
+
+        $this->loanRepository
+            ->method('countActiveByUser')
+            ->with($user)
+            ->willReturn(3);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Vous avez atteint la limite de 3 livres empruntes.');
+
+        $this->loanService->createLoan($user, $book);
+    }
+
     public function testLoanCreatedWithCorrectDueDate(): void
     {
         $user = new User();
         $book = (new Book())->setAvailableCopies(3);
 
-        // Pas d'emprunt actif existant
         $this->loanRepository
             ->method('findActiveLoanByUserAndBook')
             ->willReturn(null);
 
-        // persist() et flush() ne font rien (mocks)
+        $this->loanRepository
+            ->method('countActiveByUser')
+            ->with($user)
+            ->willReturn(2);
+
         $this->em->expects($this->once())->method('persist');
         $this->em->expects($this->once())->method('flush');
 
@@ -76,30 +97,89 @@ class LoanServiceTest extends TestCase
         $this->assertSame($expectedDueDate, $loan->getDueDate()->format('Y-m-d'));
     }
 
-    // Vérifie que returnLoan() restitue bien +1 copie disponible au livre
-    public function testReturnLoanSetsBookAvailable(): void
+    public function testCreateLoanDecrementsAvailableCopies(): void
     {
-        $book = (new Book())->setAvailableCopies(1);
-        $loan = (new Loan())->setBook($book);
+        $user = new User();
+        $book = (new Book())->setAvailableCopies(3);
 
+        $this->loanRepository
+            ->method('findActiveLoanByUserAndBook')
+            ->willReturn(null);
+
+        $this->loanRepository
+            ->method('countActiveByUser')
+            ->with($user)
+            ->willReturn(0);
+
+        $this->em->expects($this->once())->method('persist');
         $this->em->expects($this->once())->method('flush');
 
-        $this->loanService->returnLoan($loan);
+        $this->loanService->createLoan($user, $book);
 
-        // Le livre doit avoir récupéré +1 copie disponible
         $this->assertSame(2, $book->getAvailableCopies());
     }
 
-    // Vérifie que returnLoan() passe bien le statut de l'emprunt à RETURNED
-    public function testReturnLoanSetsStatusReturned(): void
+    public function testRequestReturnSetsPendingStatus(): void
     {
-        $book = (new Book())->setAvailableCopies(1);
-        $loan = (new Loan())->setBook($book);
+        $loan = new Loan();
 
         $this->em->expects($this->once())->method('flush');
 
-        $this->loanService->returnLoan($loan);
+        $this->loanService->requestReturn($loan);
+
+        $this->assertSame(Loan::STATUS_RETURN_REQUESTED, $loan->getStatus());
+        $this->assertNull($loan->getReturnedAt());
+    }
+
+    public function testCannotRequestReturnTwice(): void
+    {
+        $loan = (new Loan())->setStatus(Loan::STATUS_RETURN_REQUESTED);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Le retour de cet emprunt est deja en attente de validation.');
+
+        $this->loanService->requestReturn($loan);
+    }
+
+    public function testValidateReturnSetsBookAvailable(): void
+    {
+        $book = (new Book())->setAvailableCopies(1);
+        $loan = (new Loan())
+            ->setBook($book)
+            ->setStatus(Loan::STATUS_RETURN_REQUESTED);
+
+        $this->em->expects($this->once())->method('flush');
+
+        $this->loanService->validateReturn($loan);
+
+        $this->assertSame(2, $book->getAvailableCopies());
+    }
+
+    public function testValidateReturnSetsStatusReturned(): void
+    {
+        $book = (new Book())->setAvailableCopies(1);
+        $loan = (new Loan())
+            ->setBook($book)
+            ->setStatus(Loan::STATUS_RETURN_REQUESTED);
+
+        $this->em->expects($this->once())->method('flush');
+
+        $this->loanService->validateReturn($loan);
 
         $this->assertSame(Loan::STATUS_RETURNED, $loan->getStatus());
+        $this->assertNotNull($loan->getReturnedAt());
+    }
+
+    public function testCannotValidateReturnWithoutPendingRequest(): void
+    {
+        $book = (new Book())->setAvailableCopies(1);
+        $loan = (new Loan())
+            ->setBook($book)
+            ->setStatus(Loan::STATUS_ACTIVE);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Aucune demande de retour en attente pour cet emprunt.');
+
+        $this->loanService->validateReturn($loan);
     }
 }

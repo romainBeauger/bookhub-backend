@@ -15,7 +15,6 @@ use Psr\Container\ContainerInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
-// Juste avant "class LoanControllerTest extends TestCase"
 class LoanControllerDouble extends LoanController
 {
     private ?\Symfony\Component\Security\Core\User\UserInterface $testUser = null;
@@ -46,7 +45,7 @@ class LoanControllerTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->loanService    = $this->createMock(LoanService::class);
+        $this->loanService = $this->createMock(LoanService::class);
         $this->bookRepository = $this->createMock(BookRepository::class);
         $this->loanRepository = $this->createMock(LoanRepository::class);
 
@@ -62,7 +61,6 @@ class LoanControllerTest extends TestCase
         });
     }
 
-    // Vérifie qu'un emprunt valide retourne un statut 201 avec les données du prêt
     public function testBorrowReturns201(): void
     {
         $user = new User();
@@ -83,24 +81,23 @@ class LoanControllerTest extends TestCase
         $this->assertSame('Dune', $payload['bookTitle']);
     }
 
-    // Vérifie que la méthode create() est protégée par #[IsGranted('ROLE_USER')] via Reflection
     public function testBorrowReturns403IfNotLoggedIn(): void
     {
         $reflection = new \ReflectionMethod(LoanController::class, 'create');
         $attributes = $reflection->getAttributes(IsGranted::class);
 
-        $this->assertNotEmpty($attributes, 'La méthode create() doit être protégée par #[IsGranted]');
+        $this->assertNotEmpty($attributes, 'La methode create() doit etre protegee par #[IsGranted]');
 
         $isGranted = $attributes[0]->newInstance();
         $this->assertSame('ROLE_USER', $isGranted->attribute);
     }
 
-    // Vérifie que myLoans() appelle getLoansByUser() avec le bon utilisateur et retourne uniquement ses emprunts
     public function testGetMyLoansReturnsOnlyMineNotOthers(): void
     {
-        $user = new User();
+        $user = (new User())
+            ->setFirstName('Jean')
+            ->setLastName('Dupont');
         $book = (new Book())->setTitle('Dune')->setAvailableCopies(1);
-
         $loan = (new Loan())
             ->setBook($book)
             ->setUser($user)
@@ -108,7 +105,6 @@ class LoanControllerTest extends TestCase
 
         $this->controller->setTestUser($user);
 
-        // On vérifie que getLoansByUser est appelé avec le bon user
         $this->loanService
             ->expects($this->once())
             ->method('getLoansByUser')
@@ -121,15 +117,84 @@ class LoanControllerTest extends TestCase
         $payload = json_decode($response->getContent(), true);
         $this->assertCount(1, $payload);
         $this->assertSame('Dune', $payload[0]['bookTitle']);
+        $this->assertSame('Jean', $payload[0]['user']['firstName']);
+        $this->assertSame('Dupont', $payload[0]['user']['lastName']);
     }
 
-    // Vérifie que la méthode returnLoan() est protégée par #[IsGranted('ROLE_LIBRARIAN')] via Reflection
-    public function testReturnRequiresLibrarianRole(): void
+    public function testOwnerCanRequestOwnReturn(): void
+    {
+        $user = new User();
+        $book = (new Book())->setTitle('Dune');
+        $loan = (new Loan())
+            ->setBook($book)
+            ->setUser($user)
+            ->setDueDate(new \DateTimeImmutable('+14 days'));
+
+        $this->controller->setTestUser($user);
+        $this->loanRepository->method('find')->with(12)->willReturn($loan);
+        $this->loanService->expects($this->once())->method('requestReturn')->with($loan)->willReturn($loan);
+
+        $response = $this->controller->returnLoan(12);
+
+        $this->assertSame(200, $response->getStatusCode());
+    }
+
+    public function testUserCannotRequestAnotherUsersReturn(): void
+    {
+        $owner = new User();
+        $otherUser = new User();
+        $book = (new Book())->setTitle('Dune');
+        $loan = (new Loan())
+            ->setBook($book)
+            ->setUser($owner)
+            ->setDueDate(new \DateTimeImmutable('+14 days'));
+
+        $this->controller->setTestUser($otherUser);
+        $this->loanRepository->method('find')->with(12)->willReturn($loan);
+        $this->loanService->expects($this->never())->method('requestReturn');
+
+        $response = $this->controller->returnLoan(12);
+
+        $this->assertSame(403, $response->getStatusCode());
+    }
+
+    public function testLibrarianCanValidateReturn(): void
+    {
+        $librarian = (new User())->setRoles(['ROLE_LIBRARIAN']);
+        $user = new User();
+        $book = (new Book())->setTitle('Dune');
+        $loan = (new Loan())
+            ->setBook($book)
+            ->setUser($user)
+            ->setDueDate(new \DateTimeImmutable('+14 days'))
+            ->setStatus(Loan::STATUS_RETURN_REQUESTED);
+
+        $this->controller->setTestUser($librarian);
+        $this->loanRepository->method('find')->with(21)->willReturn($loan);
+        $this->loanService->expects($this->once())->method('validateReturn')->with($loan)->willReturn($loan);
+
+        $response = $this->controller->validateReturn(21);
+
+        $this->assertSame(200, $response->getStatusCode());
+    }
+
+    public function testReturnRequestRequiresUserRole(): void
     {
         $reflection = new \ReflectionMethod(LoanController::class, 'returnLoan');
         $attributes = $reflection->getAttributes(IsGranted::class);
 
-        $this->assertNotEmpty($attributes, 'La méthode returnLoan() doit être protégée par #[IsGranted]');
+        $this->assertNotEmpty($attributes, 'La methode returnLoan() doit etre protegee par #[IsGranted]');
+
+        $isGranted = $attributes[0]->newInstance();
+        $this->assertSame('ROLE_USER', $isGranted->attribute);
+    }
+
+    public function testValidateReturnRequiresLibrarianRole(): void
+    {
+        $reflection = new \ReflectionMethod(LoanController::class, 'validateReturn');
+        $attributes = $reflection->getAttributes(IsGranted::class);
+
+        $this->assertNotEmpty($attributes, 'La methode validateReturn() doit etre protegee par #[IsGranted]');
 
         $isGranted = $attributes[0]->newInstance();
         $this->assertSame('ROLE_LIBRARIAN', $isGranted->attribute);
