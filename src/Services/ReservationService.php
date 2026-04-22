@@ -11,6 +11,8 @@ use Doctrine\ORM\EntityManagerInterface;
 
 readonly class ReservationService
 {
+    private const MAX_ACTIVE_RESERVATIONS_PER_USER = 5;
+
     public function __construct(
         private EntityManagerInterface $em,
         private ReservationRepository $reservationRepository,
@@ -21,6 +23,10 @@ readonly class ReservationService
     {
         if ($this->reservationRepository->findActiveReservationByUserAndBook($user, (int) $book->getId())) {
             throw new \RuntimeException('Vous avez deja une reservation active pour ce livre.');
+        }
+
+        if ($this->reservationRepository->countActiveByUser($user) >= self::MAX_ACTIVE_RESERVATIONS_PER_USER) {
+            throw new \RuntimeException('Vous avez atteint la limite de 5 reservations actives.');
         }
 
         $reservation = new Reservation();
@@ -45,9 +51,9 @@ readonly class ReservationService
     /**
      * @return Reservation[]
      */
-    public function getAllReservations(?string $status = null, ?int $bookId = null): array
+    public function getAllReservations(?string $status = null, ?int $bookId = null, ?string $userName = null): array
     {
-        return $this->reservationRepository->findAllWithFilters($status, $bookId);
+        return $this->reservationRepository->findAllWithFilters($status, $bookId, $userName);
     }
 
     public function markReady(Reservation $reservation): Reservation

@@ -33,14 +33,14 @@ class ReservationRepository extends ServiceEntityRepository
     /**
      * @return Reservation[]
      */
-    public function findAllWithFilters(?string $status = null, ?int $bookId = null): array
+    public function findAllWithFilters(?string $status = null, ?int $bookId = null, ?string $userName = null): array
     {
         $qb = $this->createQueryBuilder('r')
             ->leftJoin('r.book', 'b')
             ->leftJoin('r.user', 'u')
             ->addSelect('b', 'u')
-            ->orderBy('r.queuePosition', 'ASC')
-            ->addOrderBy('r.reservationDate', 'ASC');
+            ->orderBy('r.reservationDate', 'DESC')
+            ->addOrderBy('r.queuePosition', 'ASC');
 
         if ($status !== null) {
             $qb->andWhere('r.status = :status')
@@ -50,6 +50,13 @@ class ReservationRepository extends ServiceEntityRepository
         if ($bookId !== null) {
             $qb->andWhere('b.id = :bookId')
                 ->setParameter('bookId', $bookId);
+        }
+
+        if ($userName !== null && $userName !== '') {
+            $normalizedSearch = '%' . mb_strtolower(trim($userName)) . '%';
+
+            $qb->andWhere('LOWER(COALESCE(u.firstName, \'\')) LIKE :userName OR LOWER(COALESCE(u.lastName, \'\')) LIKE :userName')
+                ->setParameter('userName', $normalizedSearch);
         }
 
         return $qb->getQuery()->getResult();
@@ -63,6 +70,21 @@ class ReservationRepository extends ServiceEntityRepository
             ->andWhere('b.id = :bookId')
             ->andWhere('r.status IN (:statuses)')
             ->setParameter('bookId', $bookId)
+            ->setParameter('statuses', [
+                Reservation::STATUS_PENDING,
+                Reservation::STATUS_READY,
+            ])
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    public function countActiveByUser(User $user): int
+    {
+        return (int) $this->createQueryBuilder('r')
+            ->select('COUNT(r.id)')
+            ->andWhere('r.user = :user')
+            ->andWhere('r.status IN (:statuses)')
+            ->setParameter('user', $user)
             ->setParameter('statuses', [
                 Reservation::STATUS_PENDING,
                 Reservation::STATUS_READY,

@@ -102,6 +102,7 @@ class ReservationController extends AbstractController
         parameters: [
             new OA\Parameter(name: 'status', in: 'query', required: false, schema: new OA\Schema(type: 'string', enum: ['PENDING', 'READY', 'VALIDATED', 'CANCELLED'])),
             new OA\Parameter(name: 'bookId', in: 'query', required: false, schema: new OA\Schema(type: 'integer')),
+            new OA\Parameter(name: 'userName', in: 'query', required: false, schema: new OA\Schema(type: 'string')),
         ],
         responses: [
             new OA\Response(response: 200, description: 'Liste des reservations'),
@@ -114,6 +115,7 @@ class ReservationController extends AbstractController
     {
         $status = $request->query->get('status');
         $bookId = $request->query->get('bookId');
+        $userName = trim((string) $request->query->get('userName', ''));
 
         if ($status !== null && !in_array($status, [
             Reservation::STATUS_PENDING,
@@ -130,7 +132,8 @@ class ReservationController extends AbstractController
 
         $reservations = $this->reservationService->getAllReservations(
             $status ?: null,
-            $bookId !== null ? (int) $bookId : null
+            $bookId !== null ? (int) $bookId : null,
+            $userName !== '' ? $userName : null
         );
 
         return $this->json(array_map(fn (Reservation $reservation) => $this->formatReservation($reservation), $reservations));
