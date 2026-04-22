@@ -14,22 +14,18 @@ final class Version20260420095050 extends AbstractMigration
 {
     public function getDescription(): string
     {
-        return '';
+        return 'No-op duplicate review migration kept for compatibility';
     }
 
     public function up(Schema $schema): void
     {
-        // this up() migration is auto-generated, please modify it to your needs
-        $this->addSql('CREATE TABLE review (id INT AUTO_INCREMENT NOT NULL, rating INT NOT NULL, comment LONGTEXT DEFAULT NULL, created_at DATETIME NOT NULL, updated_at DATETIME DEFAULT NULL, is_moderated TINYINT NOT NULL, user_id INT NOT NULL, book_id INT NOT NULL, INDEX IDX_794381C6A76ED395 (user_id), INDEX IDX_794381C616A2B381 (book_id), PRIMARY KEY (id)) DEFAULT CHARACTER SET utf8mb4');
-        $this->addSql('ALTER TABLE review ADD CONSTRAINT FK_794381C6A76ED395 FOREIGN KEY (user_id) REFERENCES user (id)');
-        $this->addSql('ALTER TABLE review ADD CONSTRAINT FK_794381C616A2B381 FOREIGN KEY (book_id) REFERENCES book (id)');
+        // The review table is already created by Version20260420093415.
+        // This later duplicate migration must stay a no-op so existing
+        // environments can continue applying the sequence safely.
     }
 
     public function down(Schema $schema): void
     {
-        // this down() migration is auto-generated, please modify it to your needs
-        $this->addSql('ALTER TABLE review DROP FOREIGN KEY FK_794381C6A76ED395');
-        $this->addSql('ALTER TABLE review DROP FOREIGN KEY FK_794381C616A2B381');
-        $this->addSql('DROP TABLE review');
+        // Intentionally empty because up() is a no-op.
     }
 }
