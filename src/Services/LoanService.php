@@ -72,6 +72,7 @@ readonly class LoanService
 
         $loan->setReturnedAt(new \DateTimeImmutable());
         $loan->setStatus(Loan::STATUS_RETURNED);
+        $loan->setIsLate(false);
 
         $book = $loan->getBook();
         $book->setAvailableCopies($book->getAvailableCopies() + 1);
