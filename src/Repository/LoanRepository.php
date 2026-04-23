@@ -48,6 +48,18 @@ class LoanRepository extends ServiceEntityRepository
             ->getOneOrNullResult();
     }
 
+    public function hasUserBorrowedBook(User $user, Book $book): bool
+    {
+        return (int) $this->createQueryBuilder('l')
+                ->select('COUNT(l.id)')
+                ->andWhere('l.user = :user')
+                ->andWhere('l.book = :book')
+                ->setParameter('user', $user)
+                ->setParameter('book', $book)
+                ->getQuery()
+                ->getSingleScalarResult() > 0;
+    }
+
     public function countActiveByUser(User $user): int
     {
         return (int) $this->createQueryBuilder('l')
