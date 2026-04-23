@@ -4,6 +4,7 @@ namespace App\Controller;
 
 use App\Entity\Book;
 use App\Entity\Category;
+use App\Entity\User;
 use App\Repository\BookRepository;
 use App\Repository\CategoryRepository;
 use Doctrine\ORM\EntityManagerInterface;
@@ -128,6 +129,10 @@ final class BookController extends AbstractController
     #[Security(name: 'Bearer')]
     public function create(Request $request): JsonResponse
     {
+        if (!$this->canManageBooks()) {
+            return $this->json(['message' => 'Acces refuse'], Response::HTTP_FORBIDDEN);
+        }
+
         $data = json_decode($request->getContent(), true);
         if (!is_array($data)) {
             return $this->json(['message' => 'JSON invalide'], Response::HTTP_BAD_REQUEST);
@@ -185,6 +190,10 @@ final class BookController extends AbstractController
     #[Security(name: 'Bearer')]
     public function update(Book $book, Request $request): JsonResponse
     {
+        if (!$this->canManageBooks()) {
+            return $this->json(['message' => 'Acces refuse'], Response::HTTP_FORBIDDEN);
+        }
+
         $data = json_decode($request->getContent(), true);
         if (!is_array($data)) {
             return $this->json(['message' => 'JSON invalide'], Response::HTTP_BAD_REQUEST);
@@ -228,10 +237,26 @@ final class BookController extends AbstractController
     #[Security(name: 'Bearer')]
     public function delete(Book $book): JsonResponse
     {
+        if (!$this->canManageBooks()) {
+            return $this->json(['message' => 'Acces refuse'], Response::HTTP_FORBIDDEN);
+        }
+
         $this->entityManager->remove($book);
         $this->entityManager->flush();
 
         return $this->json(null, Response::HTTP_NO_CONTENT);
+    }
+
+    private function canManageBooks(): bool
+    {
+        /** @var User|null $currentUser */
+        $currentUser = $this->getUser();
+
+        if (!$currentUser) {
+            return false;
+        }
+
+        return $this->isGranted('ROLE_LIBRARIAN') || $this->isGranted('ROLE_ADMIN');
     }
 
     private function validateBookData(array $data): ?string
