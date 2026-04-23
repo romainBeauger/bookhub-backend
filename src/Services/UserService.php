@@ -17,7 +17,7 @@ readonly class UserService
 
     public function updateProfile(User $user, array $data): User
     {
-        if (empty($data['nom']) && empty($data['prenom']) && empty($data['email'])) {
+        if (empty($data['nom']) && empty($data['prenom']) && empty($data['email']) && !array_key_exists('phone', $data)) {
             throw new \InvalidArgumentException('Au moins un champ est requis.');
         }
 
@@ -40,6 +40,10 @@ readonly class UserService
 
         if (!empty($data['prenom'])) {
             $user->setFirstName($data['prenom']);
+        }
+
+        if (array_key_exists('phone', $data)) {
+            $user->setPhone($data['phone']);
         }
 
         $this->entityManager->flush();
