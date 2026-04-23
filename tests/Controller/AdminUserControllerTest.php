@@ -27,6 +27,10 @@ class AdminUserControllerTest extends TestCase
         $this->userService = $this->createMock(UserService::class);
         $this->tokenStorage = $this->createMock(TokenStorageInterface::class);
 
+        $this->userService
+            ->method('syncUserStatus')
+            ->willReturnCallback(fn (User $user): User => $user);
+
         $this->controller = new AdminUserController($this->userService);
 
         $tokenStorage = $this->tokenStorage;
@@ -189,6 +193,33 @@ class AdminUserControllerTest extends TestCase
         $this->assertSame('Un administrateur ne peut pas se suspendre lui-meme.', $decoded['message']);
     }
 
+    public function testUnsuspendReturnsUpdatedUser(): void
+    {
+        $admin = (new User())->setRoles(['ROLE_ADMIN']);
+        $this->forceEntityId($admin, 2);
+        $this->mockAuthenticatedUser($admin);
+
+        $target = (new User())
+            ->setRoles(['ROLE_USER'])
+            ->setIsActive(true);
+        $target->setSuspendedUntil(null);
+        $this->forceEntityId($target, 9);
+
+        $this->userService
+            ->expects($this->once())
+            ->method('unsuspendUserByAdmin')
+            ->with($target, $admin)
+            ->willReturn($target);
+
+        $response = $this->controller->unsuspend($target);
+
+        $this->assertSame(200, $response->getStatusCode());
+        $decoded = json_decode($response->getContent() ?: '', true);
+        $this->assertTrue($decoded['isActive']);
+        $this->assertFalse($decoded['isSuspended']);
+        $this->assertNull($decoded['suspendedUntil']);
+    }
+
     public function testDeleteReturnsSuccessMessage(): void
     {
         $admin = (new User())->setRoles(['ROLE_ADMIN']);
@@ -208,6 +239,42 @@ class AdminUserControllerTest extends TestCase
         $this->assertSame(200, $response->getStatusCode());
         $decoded = json_decode($response->getContent() ?: '', true);
         $this->assertSame('Utilisateur supprime.', $decoded['message']);
+    }
+
+    public function testIndexNormalizesExpiredTemporarySuspensionToActiveStatus(): void
+    {
+        $expiredSuspendedUser = (new User())
+            ->setFirstName('Jean')
+            ->setLastName('Dupont')
+            ->setEmail('jean@example.com')
+            ->setRoles(['ROLE_USER'])
+            ->setIsActive(true)
+            ->setSuspendedUntil(new \DateTimeImmutable('-1 day'));
+        $this->forceEntityId($expiredSuspendedUser, 11);
+
+        $this->userService
+            ->expects($this->once())
+            ->method('getAllUsers')
+            ->willReturn([$expiredSuspendedUser]);
+
+        $this->userService
+            ->expects($this->once())
+            ->method('syncUserStatus')
+            ->with($expiredSuspendedUser)
+            ->willReturnCallback(function (User $user): User {
+                $user->setSuspendedUntil(null);
+                $user->setIsActive(true);
+
+                return $user;
+            });
+
+        $response = $this->controller->index();
+
+        $this->assertSame(200, $response->getStatusCode());
+        $payload = json_decode($response->getContent() ?: '', true);
+        $this->assertTrue($payload[0]['isActive']);
+        $this->assertFalse($payload[0]['isSuspended']);
+        $this->assertNull($payload[0]['suspendedUntil']);
     }
 
     private function mockAuthenticatedUser(User $user): void

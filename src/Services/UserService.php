@@ -93,7 +93,18 @@ readonly class UserService
      */
     public function getAllUsers(): array
     {
-        return $this->userRepository->findAllOrderedByCreationDate();
+        $users = $this->userRepository->findAllOrderedByCreationDate();
+        $hasChanges = false;
+
+        foreach ($users as $user) {
+            $hasChanges = $this->normalizeSuspensionStatus($user) || $hasChanges;
+        }
+
+        if ($hasChanges) {
+            $this->entityManager->flush();
+        }
+
+        return $users;
     }
 
     public function createUserByAdmin(array $data): User
@@ -117,6 +128,15 @@ readonly class UserService
 
         $this->entityManager->persist($user);
         $this->entityManager->flush();
+
+        return $user;
+    }
+
+    public function syncUserStatus(User $user): User
+    {
+        if ($this->normalizeSuspensionStatus($user)) {
+            $this->entityManager->flush();
+        }
 
         return $user;
     }
@@ -215,6 +235,19 @@ readonly class UserService
             $user->setSuspendedUntil(null);
         }
 
+        $this->entityManager->flush();
+
+        return $user;
+    }
+
+    public function unsuspendUserByAdmin(User $user, ?User $actor = null): User
+    {
+        if ($actor && $actor->getId() === $user->getId()) {
+            throw new \InvalidArgumentException('Un administrateur ne peut pas se modifier lui-meme via cet endpoint.');
+        }
+
+        $user->setIsActive(true);
+        $user->setSuspendedUntil(null);
         $this->entityManager->flush();
 
         return $user;
@@ -326,5 +359,29 @@ readonly class UserService
         }
 
         return $durationDays;
+    }
+
+    private function normalizeSuspensionStatus(User $user): bool
+    {
+        $suspendedUntil = $user->getSuspendedUntil();
+
+        if ($suspendedUntil === null) {
+            return false;
+        }
+
+        if ($suspendedUntil > new \DateTimeImmutable()) {
+            if ($user->isActive() !== true) {
+                $user->setIsActive(true);
+
+                return true;
+            }
+
+            return false;
+        }
+
+        $user->setSuspendedUntil(null);
+        $user->setIsActive(true);
+
+        return true;
     }
 }

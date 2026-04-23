@@ -144,6 +144,25 @@ class UserServiceTest extends TestCase
         ], $admin);
     }
 
+    public function testUnsuspendUserByAdminClearsSuspension(): void
+    {
+        $admin = (new User())->setRoles(['ROLE_ADMIN']);
+        $this->forceEntityId($admin, 1);
+
+        $user = (new User())
+            ->setRoles(['ROLE_USER'])
+            ->setIsActive(false)
+            ->setSuspendedUntil(new \DateTimeImmutable('+5 days'));
+        $this->forceEntityId($user, 6);
+
+        $this->entityManager->expects($this->once())->method('flush');
+
+        $updated = $this->userService->unsuspendUserByAdmin($user, $admin);
+
+        $this->assertTrue($updated->isActive());
+        $this->assertNull($updated->getSuspendedUntil());
+    }
+
     public function testDeleteUserByAdminAnonymizesUser(): void
     {
         $admin = (new User())->setRoles(['ROLE_ADMIN']);
@@ -164,6 +183,20 @@ class UserServiceTest extends TestCase
         $this->assertSame('Supprime', $user->getLastName());
         $this->assertSame('deleted_9@bookhub.local', $user->getEmail());
         $this->assertFalse($user->isActive());
+    }
+
+    public function testSyncUserStatusReactivatesExpiredTemporarySuspension(): void
+    {
+        $user = (new User())
+            ->setIsActive(true)
+            ->setSuspendedUntil(new \DateTimeImmutable('-2 days'));
+
+        $this->entityManager->expects($this->once())->method('flush');
+
+        $updated = $this->userService->syncUserStatus($user);
+
+        $this->assertTrue($updated->isActive());
+        $this->assertNull($updated->getSuspendedUntil());
     }
 
     private function forceEntityId(object $entity, int $id): void
