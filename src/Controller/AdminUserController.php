@@ -112,6 +112,8 @@ final class AdminUserController extends AbstractController
     #[Security(name: 'Bearer')]
     public function update(User $user, Request $request): JsonResponse
     {
+        $user = $this->userService->syncUserStatus($user);
+
         $data = json_decode($request->getContent(), true);
         if (!is_array($data)) {
             return $this->json(['message' => 'JSON invalide'], Response::HTTP_BAD_REQUEST);
@@ -153,6 +155,8 @@ final class AdminUserController extends AbstractController
     #[Security(name: 'Bearer')]
     public function suspend(User $user, Request $request): JsonResponse
     {
+        $user = $this->userService->syncUserStatus($user);
+
         $data = json_decode($request->getContent(), true);
         if ($request->getContent() !== '' && !is_array($data)) {
             return $this->json(['message' => 'JSON invalide'], Response::HTTP_BAD_REQUEST);
@@ -163,6 +167,37 @@ final class AdminUserController extends AbstractController
 
         try {
             $user = $this->userService->suspendUserByAdmin($user, $data ?? [], $admin);
+        } catch (\InvalidArgumentException $e) {
+            return $this->json(['message' => $e->getMessage()], Response::HTTP_BAD_REQUEST);
+        }
+
+        return $this->json($this->formatUser($user));
+    }
+
+    #[Route('/{id}/unsuspend', name: 'admin_user_unsuspend', requirements: ['id' => '\d+'], methods: ['PATCH'])]
+    #[OA\Patch(
+        path: '/api/admin/users/{id}/unsuspend',
+        summary: 'Lever manuellement la suspension d un utilisateur',
+        parameters: [
+            new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'Suspension retiree'),
+            new OA\Response(response: 400, description: 'Action invalide'),
+            new OA\Response(response: 403, description: 'Acces refuse'),
+            new OA\Response(response: 404, description: 'Utilisateur introuvable'),
+        ]
+    )]
+    #[Security(name: 'Bearer')]
+    public function unsuspend(User $user): JsonResponse
+    {
+        $user = $this->userService->syncUserStatus($user);
+
+        /** @var User|null $admin */
+        $admin = $this->getUser();
+
+        try {
+            $user = $this->userService->unsuspendUserByAdmin($user, $admin);
         } catch (\InvalidArgumentException $e) {
             return $this->json(['message' => $e->getMessage()], Response::HTTP_BAD_REQUEST);
         }
@@ -187,6 +222,8 @@ final class AdminUserController extends AbstractController
     #[Security(name: 'Bearer')]
     public function delete(User $user): JsonResponse
     {
+        $user = $this->userService->syncUserStatus($user);
+
         /** @var User|null $admin */
         $admin = $this->getUser();
 
@@ -201,6 +238,8 @@ final class AdminUserController extends AbstractController
 
     private function formatUser(User $user): array
     {
+        $user = $this->userService->syncUserStatus($user);
+
         return [
             'id' => $user->getId(),
             'nom' => $user->getLastName(),
