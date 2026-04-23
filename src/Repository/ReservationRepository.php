@@ -64,18 +64,10 @@ class ReservationRepository extends ServiceEntityRepository
 
     public function countActiveForBook(int $bookId): int
     {
-        return (int) $this->createQueryBuilder('r')
-            ->select('COUNT(r.id)')
-            ->join('r.book', 'b')
-            ->andWhere('b.id = :bookId')
-            ->andWhere('r.status IN (:statuses)')
-            ->setParameter('bookId', $bookId)
-            ->setParameter('statuses', [
-                Reservation::STATUS_PENDING,
-                Reservation::STATUS_READY,
-            ])
-            ->getQuery()
-            ->getSingleScalarResult();
+        return $this->countByStatusesForBook($bookId, [
+            Reservation::STATUS_PENDING,
+            Reservation::STATUS_READY,
+        ]);
     }
 
     public function countActiveByUser(User $user): int
@@ -85,12 +77,30 @@ class ReservationRepository extends ServiceEntityRepository
             ->andWhere('r.user = :user')
             ->andWhere('r.status IN (:statuses)')
             ->setParameter('user', $user)
-            ->setParameter('statuses', [
-                Reservation::STATUS_PENDING,
-                Reservation::STATUS_READY,
-            ])
+            ->setParameter('statuses', $this->getActiveStatuses())
             ->getQuery()
             ->getSingleScalarResult();
+    }
+
+    public function countAllReservations(): int
+    {
+        return (int) $this->createQueryBuilder('r')
+            ->select('COUNT(r.id)')
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    public function countCurrentReservations(): int
+    {
+        return $this->countByStatuses($this->getActiveStatuses());
+    }
+
+    public function countPastReservations(): int
+    {
+        return $this->countByStatuses([
+            Reservation::STATUS_VALIDATED,
+            Reservation::STATUS_CANCELLED,
+        ]);
     }
 
     public function findActiveReservationByUserAndBook(User $user, int $bookId): ?Reservation
@@ -102,10 +112,7 @@ class ReservationRepository extends ServiceEntityRepository
             ->andWhere('r.status IN (:statuses)')
             ->setParameter('user', $user)
             ->setParameter('bookId', $bookId)
-            ->setParameter('statuses', [
-                Reservation::STATUS_PENDING,
-                Reservation::STATUS_READY,
-            ])
+            ->setParameter('statuses', $this->getActiveStatuses())
             ->getQuery()
             ->getOneOrNullResult();
     }
@@ -121,13 +128,50 @@ class ReservationRepository extends ServiceEntityRepository
             ->andWhere('b.id = :bookId')
             ->andWhere('r.status IN (:statuses)')
             ->setParameter('bookId', $bookId)
-            ->setParameter('statuses', [
-                Reservation::STATUS_PENDING,
-                Reservation::STATUS_READY,
-            ])
+            ->setParameter('statuses', $this->getActiveStatuses())
             ->orderBy('r.queuePosition', 'ASC')
             ->addOrderBy('r.reservationDate', 'ASC')
             ->getQuery()
             ->getResult();
+    }
+
+    /**
+     * @param string[] $statuses
+     */
+    private function countByStatuses(array $statuses): int
+    {
+        return (int) $this->createQueryBuilder('r')
+            ->select('COUNT(r.id)')
+            ->andWhere('r.status IN (:statuses)')
+            ->setParameter('statuses', $statuses)
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    /**
+     * @param string[] $statuses
+     */
+    private function countByStatusesForBook(int $bookId, array $statuses): int
+    {
+        return (int) $this->createQueryBuilder('r')
+            ->select('COUNT(r.id)')
+            ->join('r.book', 'b')
+            ->andWhere('b.id = :bookId')
+            ->andWhere('r.status IN (:statuses)')
+            ->setParameter('bookId', $bookId)
+            ->setParameter('statuses', $statuses)
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    /**
+     * @return string[]
+     */
+    private function getActiveStatuses(): array
+    {
+        return [
+            Reservation::STATUS_PENDING,
+            Reservation::STATUS_READY,
+        ];
     }
 }

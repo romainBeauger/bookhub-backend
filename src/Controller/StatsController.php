@@ -2,12 +2,15 @@
 
 namespace App\Controller;
 
+use App\Repository\BookRepository;
 use App\Repository\LoanRepository;
 use App\Entity\Loan;
+use App\Repository\ReservationRepository;
 use Nelmio\ApiDocBundle\Attribute\Security;
 use OpenApi\Attributes as OA;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
@@ -16,7 +19,9 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 class StatsController extends AbstractController
 {
     public function __construct(
+        private readonly BookRepository $bookRepository,
         private readonly LoanRepository $loanRepository,
+        private readonly ReservationRepository $reservationRepository,
     ) {}
 
     #[Route('/loans', name: 'stats_loans', methods: ['GET'])]
@@ -58,5 +63,49 @@ class StatsController extends AbstractController
                 'loanDate'  => $l->getLoanDate()->format('Y-m-d'),
             ], $overdueLoans),
         ]);
+    }
+
+    #[Route('/catalogue', name: 'stats_catalogue', methods: ['GET'])]
+    #[IsGranted('ROLE_USER')]
+    #[OA\Get(
+        path: '/api/stats/catalogue',
+        summary: 'Statistiques du catalogue pour le dashboard staff',
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Statistiques du catalogue retournees avec succes',
+                content: new OA\JsonContent(
+                    properties: [
+                        new OA\Property(property: 'totalBooks', type: 'integer', example: 125),
+                        new OA\Property(property: 'totalReservations', type: 'integer', example: 32),
+                        new OA\Property(property: 'currentReservations', type: 'integer', example: 8),
+                        new OA\Property(property: 'pastReservations', type: 'integer', example: 24),
+                        new OA\Property(property: 'topBorrowedBooks', type: 'array', items: new OA\Items(type: 'object')),
+                    ]
+                )
+            ),
+            new OA\Response(response: 401, description: 'Non authentifie'),
+            new OA\Response(response: 403, description: 'Acces refuse'),
+        ]
+    )]
+    #[Security(name: 'Bearer')]
+    public function catalogueStats(): JsonResponse
+    {
+        if (!$this->canViewCatalogueStats()) {
+            return $this->json(['message' => 'Acces refuse'], Response::HTTP_FORBIDDEN);
+        }
+
+        return $this->json([
+            'totalBooks' => $this->bookRepository->countAll(),
+            'totalReservations' => $this->reservationRepository->countAllReservations(),
+            'currentReservations' => $this->reservationRepository->countCurrentReservations(),
+            'pastReservations' => $this->reservationRepository->countPastReservations(),
+            'topBorrowedBooks' => $this->loanRepository->findMostBorrowedBooks(5),
+        ]);
+    }
+
+    private function canViewCatalogueStats(): bool
+    {
+        return $this->isGranted('ROLE_LIBRARIAN') || $this->isGranted('ROLE_ADMIN');
     }
 }
