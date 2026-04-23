@@ -130,4 +130,30 @@ class LoanRepository extends ServiceEntityRepository
             ->getQuery()
             ->getSingleScalarResult();
     }
+
+    /**
+     * @return array<int, array{id: int, title: string, author: string, loanCount: int}>
+     */
+    public function findMostBorrowedBooks(int $limit = 5): array
+    {
+        $rows = $this->createQueryBuilder('l')
+            ->select('b.id AS id, b.title AS title, b.author AS author, COUNT(l.id) AS loanCount')
+            ->join('l.book', 'b')
+            ->groupBy('b.id, b.title, b.author')
+            ->orderBy('loanCount', 'DESC')
+            ->addOrderBy('b.title', 'ASC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getArrayResult();
+
+        return array_map(
+            static fn (array $row): array => [
+                'id' => (int) $row['id'],
+                'title' => (string) $row['title'],
+                'author' => (string) $row['author'],
+                'loanCount' => (int) $row['loanCount'],
+            ],
+            $rows
+        );
+    }
 }
