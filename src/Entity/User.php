@@ -41,6 +41,9 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column]
     private ?bool $isActive = null;
 
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $suspendedUntil = null;
+
     /**
      * @var Collection<int, Loan>
      */
@@ -178,6 +181,18 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function setIsActive(bool $isActive): static
     {
         $this->isActive = $isActive;
+
+        return $this;
+    }
+
+    public function getSuspendedUntil(): ?\DateTimeImmutable
+    {
+        return $this->suspendedUntil;
+    }
+
+    public function setSuspendedUntil(?\DateTimeImmutable $suspendedUntil): static
+    {
+        $this->suspendedUntil = $suspendedUntil;
 
         return $this;
     }
