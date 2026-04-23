@@ -6,6 +6,7 @@ use App\Entity\Book;
 use App\Entity\Loan;
 use App\Entity\Reservation;
 use App\Entity\User;
+use App\Repository\LoanRepository;
 use App\Repository\ReservationRepository;
 use Doctrine\ORM\EntityManagerInterface;
 
@@ -16,11 +17,20 @@ readonly class ReservationService
     public function __construct(
         private EntityManagerInterface $em,
         private ReservationRepository $reservationRepository,
+        private LoanRepository $loanRepository,
         private LoanService $loanService,
     ) {}
 
     public function createReservation(User $user, Book $book): Reservation
     {
+        if ($book->getAvailableCopies() > 0) {
+            throw new \RuntimeException('La reservation est possible uniquement quand le livre est indisponible.');
+        }
+
+        if ($this->loanRepository->findActiveLoanByUserAndBook($user, $book)) {
+            throw new \RuntimeException('Vous avez deja ce livre en cours d\'emprunt.');
+        }
+
         if ($this->reservationRepository->findActiveReservationByUserAndBook($user, (int) $book->getId())) {
             throw new \RuntimeException('Vous avez deja une reservation active pour ce livre.');
         }
