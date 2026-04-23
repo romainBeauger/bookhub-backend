@@ -22,6 +22,7 @@ final class ReviewController extends AbstractController
     public function __construct(
         private readonly ReviewRepository $reviewRepository,
         private readonly EntityManagerInterface $entityManager,
+        private readonly \App\Repository\LoanRepository $loanRepository,
     ) {}
 
     #[Route('/api/reviews', name: 'review_list_all', methods: ['GET'])]
@@ -164,9 +165,6 @@ final class ReviewController extends AbstractController
     #[OA\Post(
         path: '/api/books/{id}/reviews',
         summary: 'Creer un avis sur un livre',
-        parameters: [
-            new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
-        ],
         requestBody: new OA\RequestBody(
             required: true,
             content: new OA\JsonContent(
@@ -177,10 +175,14 @@ final class ReviewController extends AbstractController
                 ]
             )
         ),
+        parameters: [
+            new OA\Parameter(name: 'id', in: 'path', required: true, schema: new OA\Schema(type: 'integer')),
+        ],
         responses: [
             new OA\Response(response: 201, description: 'Avis cree'),
             new OA\Response(response: 400, description: 'Donnees invalides'),
             new OA\Response(response: 401, description: 'Non authentifie'),
+            new OA\Response(response: 403, description: 'Livre non emprunte par l utilisateur'),
             new OA\Response(response: 409, description: 'Avis deja existant pour ce livre'),
         ]
     )]
@@ -199,6 +201,14 @@ final class ReviewController extends AbstractController
 
         /** @var User $user */
         $user = $this->getUser();
+
+        // Vérifie que l'utilisateur a bien emprunté ce livre
+        if (!$this->canModerateReviews() && !$this->loanRepository->hasUserBorrowedBook($user, $book)) {
+            return $this->json(
+                ['message' => 'Vous devez avoir emprunté ce livre pour pouvoir le noter'],
+                Response::HTTP_FORBIDDEN
+            );
+        }
 
         $existingReview = $this->reviewRepository->findOneBy([
             'user' => $user,
