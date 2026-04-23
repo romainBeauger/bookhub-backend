@@ -22,6 +22,7 @@ final class ReviewController extends AbstractController
     public function __construct(
         private readonly ReviewRepository $reviewRepository,
         private readonly EntityManagerInterface $entityManager,
+        private readonly \App\Repository\LoanRepository $loanRepository,
     ) {}
 
     #[Route('/api/reviews', name: 'review_list_all', methods: ['GET'])]
@@ -199,6 +200,14 @@ final class ReviewController extends AbstractController
 
         /** @var User $user */
         $user = $this->getUser();
+
+        // Vérifie que l'utilisateur a bien emprunté ce livre
+        if (!$this->canModerateReviews() && !$this->loanRepository->hasUserBorrowedBook($user, $book)) {
+            return $this->json(
+                ['message' => 'Vous devez avoir emprunté ce livre pour pouvoir le noter'],
+                Response::HTTP_FORBIDDEN
+            );
+        }
 
         $existingReview = $this->reviewRepository->findOneBy([
             'user' => $user,
