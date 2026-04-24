@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(php bin/console debug:container --show-arguments nelmio_api_doc.render_open_api)",
+      "Bash(php bin/console debug:container nelmio_api_doc.render)",
+      "Bash(php bin/console debug:container)",
+      "Bash(xargs grep *)",
+      "Bash(xargs -0 grep -l \"Voter\\\\|Security\\\\|IsGranted\")"
+    ]
+  }
+}
