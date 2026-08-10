@@ -4,6 +4,6 @@
 }
 
 :{$PORT} {
-	root * public
+	root * /app/public
 	php_server
 }
