@@ -146,6 +146,8 @@ class LoanRepository extends ServiceEntityRepository
     /**
      * @return array<int, array{id: int, title: string, author: string, loanCount: int}>
      */
+
+
     public function findMostBorrowedBooks(int $limit = 5): array
     {
         $rows = $this->createQueryBuilder('l')

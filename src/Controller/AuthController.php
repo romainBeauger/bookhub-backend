@@ -15,7 +15,7 @@ use Symfony\Component\Routing\Attribute\Route;
 final class AuthController extends AbstractController
 {
     public function __construct(
-        private AuthService $authService,
+        private readonly AuthService $authService,
     ) {}
 
     #[Route('/auth/register', name: 'auth_register', methods: ['POST'])]
