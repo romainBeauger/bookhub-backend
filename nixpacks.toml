@@ -5,4 +5,4 @@ cmds = ['COMPOSER_ALLOW_SUPERUSER=1 composer install --no-dev --optimize-autoloa
 cmds = ['mkdir -p config/jwt && openssl genrsa -passout pass:${JWT_PASSPHRASE} -out config/jwt/private.pem 4096 && openssl rsa -passin pass:${JWT_PASSPHRASE} -in config/jwt/private.pem -pubout -out config/jwt/public.pem']
 
 [start]
-cmd = 'php bin/console cache:clear --env=prod --no-debug && php -d variables_order=EGPCS -S 0.0.0.0:$PORT -t public/'
+cmd = 'php bin/console cache:clear --env=prod --no-debug && php -d variables_order=EGPCS -S 0.0.0.0:$PORT public/index.php'
