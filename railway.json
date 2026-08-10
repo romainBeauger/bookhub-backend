@@ -2,10 +2,10 @@
   "$schema": "https://railway.app/railway.schema.json",
   "build": {
     "builder": "NIXPACKS",
-    "buildCommand": "composer install --no-dev --optimize-autoloader --no-scripts && mkdir -p config/jwt && php bin/console lexik:jwt:generate-keypair --skip-if-exists"
+    "buildCommand": "COMPOSER_ALLOW_SUPERUSER=1 composer install --no-dev --optimize-autoloader --no-scripts && mkdir -p config/jwt && openssl genrsa -passout pass:${JWT_PASSPHRASE} -out config/jwt/private.pem 4096 && openssl rsa -passin pass:${JWT_PASSPHRASE} -in config/jwt/private.pem -pubout -out config/jwt/public.pem"
   },
   "deploy": {
-    "startCommand": "php -d variables_order=EGPCS -S 0.0.0.0:$PORT -t public/",
+    "startCommand": "php bin/console cache:clear --env=prod --no-debug && php -d variables_order=EGPCS -S 0.0.0.0:$PORT -t public/",
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 10
   }
