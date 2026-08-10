@@ -9,8 +9,8 @@ if [ ! -f config/jwt/private.pem ]; then
 fi
 
 PORT=${PORT:-80}
-sed -i "s/*:80>/*:$PORT>/g" /etc/apache2/sites-available/000-default.conf
-sed -i "s/Listen 80/Listen $PORT/" /etc/apache2/ports.conf
+sed -i "s/\*:80>/\*:${PORT}>/g" /etc/apache2/sites-available/000-default.conf
+sed -i "s/Listen 80/Listen ${PORT}/" /etc/apache2/ports.conf
 
 APP_ENV=prod php bin/console cache:warmup --no-debug 2>/dev/null || true
 

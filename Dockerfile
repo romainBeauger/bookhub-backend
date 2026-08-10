@@ -29,7 +29,7 @@ RUN printf '<VirtualHost *:80>\n\
 </VirtualHost>\n' > /etc/apache2/sites-available/000-default.conf
 
 COPY docker-entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+RUN sed -i 's/\r$//' /entrypoint.sh && chmod +x /entrypoint.sh
 
 EXPOSE 80
 ENTRYPOINT ["/entrypoint.sh"]
