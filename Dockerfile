@@ -14,6 +14,7 @@ WORKDIR /var/www/html
 COPY . .
 
 RUN COMPOSER_ALLOW_SUPERUSER=1 composer install --no-dev --optimize-autoloader --no-scripts \
+    && mkdir -p var/cache var/log \
     && chown -R www-data:www-data var/
 
 RUN printf '<VirtualHost *:80>\n\
